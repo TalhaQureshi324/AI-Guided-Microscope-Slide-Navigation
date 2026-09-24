@@ -1,0 +1,3 @@
+[submodule "external/cellpose"]
+	path = external/cellpose
+	url = https://github.com/MouseLand/cellpose.git

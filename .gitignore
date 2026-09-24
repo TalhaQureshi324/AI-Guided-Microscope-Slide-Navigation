@@ -1,0 +1,26 @@
+# Python & Environments
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+env/
+venv/
+*.egg-info/
+build/
+dist/
+.eggs/
+.pytest_cache/
+
+# Cellpose downloaded models & cache
+.cellpose/
+models/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / IDE
+.DS_Store
+desktop.ini
+Thumbs.db
+.vscode/
+.idea/
