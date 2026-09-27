@@ -15,6 +15,9 @@ dist/
 .cellpose/
 models/
 
+# Experiment outputs (regenerable from Dataset/ + configs/)
+outputs/
+
 # Jupyter
 .ipynb_checkpoints/
 
