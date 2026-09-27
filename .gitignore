@@ -15,8 +15,8 @@ dist/
 .cellpose/
 models/
 
-# Experiment outputs (regenerable from Dataset/ + configs/)
-outputs/
+# Experiment outputs are tracked deliberately (results serve as the FYP
+# evidence record); large regenerable intermediates would be listed here.
 
 # Jupyter
 .ipynb_checkpoints/

@@ -1,0 +1,54 @@
+{
+  "experiment": "cpsam_v2_baseline",
+  "device": "CPU",
+  "model": "cpsam_v2",
+  "images_processed": 10,
+  "successful": 10,
+  "failed": [],
+  "counts": {
+    "total_instances": 10418,
+    "rbc_candidates": 10343,
+    "border_rbc": 364,
+    "merged_suspects": 26,
+    "small_artifacts": 73,
+    "possible_wbc": 2
+  },
+  "performance": {
+    "model_load_s": 3.47,
+    "inference_mean_ms": 686880.5,
+    "inference_median_ms": 649663.3,
+    "inference_min_ms": 593864.4,
+    "inference_max_ms": 862899.2,
+    "total_mean_ms": 701868.0,
+    "approx_fps_inference": 0.002,
+    "approx_fps_end_to_end": 0.001
+  },
+  "wall_clock_s": 7019.2,
+  "environment": {
+    "timestamp": "2026-09-26T22:54:34",
+    "git_commit": "3c7d25f",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 142 Stepping 10, GenuineIntel",
+    "python": "3.12.13",
+    "python_executable": "D:\\conda_envs\\cellpose\\python.exe",
+    "torch": "2.5.1+cu121",
+    "cuda_available": false,
+    "cuda_version": null,
+    "cudnn_version": null,
+    "device": "CPU",
+    "cellpose_version": "4.2.1.1",
+    "experiment": "cpsam_v2_baseline",
+    "model": "cpsam_v2",
+    "cellpose_parameters": {
+      "diameter": null,
+      "cellprob_threshold": 0.0,
+      "flow_threshold": 0.4,
+      "min_size": 15,
+      "normalize": true,
+      "augment": false
+    },
+    "use_bfloat16": false,
+    "image_count": 10,
+    "dataset_dir": "D:\\Semester 07\\Courses\\FYP\\AI-Guided-Microscope-Slide-Navigation\\Dataset"
+  }
+}

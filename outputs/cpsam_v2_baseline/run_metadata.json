@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-09-26T22:54:34",
+  "git_commit": "3c7d25f",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 142 Stepping 10, GenuineIntel",
+  "python": "3.12.13",
+  "python_executable": "D:\\conda_envs\\cellpose\\python.exe",
+  "torch": "2.5.1+cu121",
+  "cuda_available": false,
+  "cuda_version": null,
+  "cudnn_version": null,
+  "device": "CPU",
+  "cellpose_version": "4.2.1.1",
+  "experiment": "cpsam_v2_baseline",
+  "model": "cpsam_v2",
+  "cellpose_parameters": {
+    "diameter": null,
+    "cellprob_threshold": 0.0,
+    "flow_threshold": 0.4,
+    "min_size": 15,
+    "normalize": true,
+    "augment": false
+  },
+  "use_bfloat16": false,
+  "image_count": 10,
+  "dataset_dir": "D:\\Semester 07\\Courses\\FYP\\AI-Guided-Microscope-Slide-Navigation\\Dataset"
+}

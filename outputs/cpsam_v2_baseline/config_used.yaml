@@ -1,0 +1,68 @@
+# Default configuration for the AI-Guided Microscope Slide Navigation project.
+#
+# Every experiment copies this file (or a variant) into its output directory so
+# that results can always be traced back to the exact parameters used.
+
+experiment:
+  name: cpsam_v2_baseline
+
+dataset:
+  dir: Dataset
+  # Supported microscope image extensions (lowercase, without dot).
+  extensions: [jpg, jpeg, png, tif, tiff, bmp]
+
+model:
+  name: cpsam_v2          # Cellpose-SAM v2 checkpoint (primary baseline)
+  gpu: auto               # auto | true | false  (auto = use CUDA if available)
+  # Reduced precision. null = keep Cellpose default (bfloat16). Measured on the
+  # project laptop (i5-8250U, no native bfloat16 instructions): bfloat16 forces
+  # software emulation and exceeds 55 min/image, while float32 completes one
+  # 1920x1080 image in ~815 s (~13.6 min). float32 is therefore the correct
+  # precision on THIS CPU. On CUDA GPUs, bfloat16 remains the fast default.
+  use_bfloat16: false
+
+segmentation:
+  # null = Cellpose default scaling (recommended first baseline for cpsam_v2).
+  diameter: null
+  cellprob_threshold: 0.0   # Cellpose default
+  flow_threshold: 0.4       # Cellpose default
+  min_size: 15              # Cellpose default (pixels)
+  normalize: true           # keep Cellpose's internal normalization enabled
+  augment: false
+
+# RBC candidate filtering. All factors are relative to the robust per-image
+# median cell size estimated from interior (non-border) cells, so nothing here
+# is tied to a fixed pixel size or magnification.
+filtering:
+  small_area_factor: 0.35   # area < 0.35 x median -> possible_small_artifact
+  wbc_area_factor: 3.5      # area > 3.5 x median  -> possible_wbc
+  stats_scope: interior     # median estimated from interior cells only
+
+# Suspicious merged-mask detection (multi-signal, never area alone).
+merge_detection:
+  area_factor_min: 1.6      # area >= 1.6 x median required before considering
+  solidity_max: 0.90        # signal: low solidity (non-convex / lobed shape)
+  elongation_min: 1.5       # signal: major/minor axis ratio
+  min_signals: 2            # how many signals must agree (incl. DT peaks >= 2)
+
+# Near-contact / crowding analysis. Distances scale with the median RBC diameter.
+contact:
+  margin_fraction: 0.15     # contact margin = 0.15 x median diameter
+  proximity_norm: 1.5       # graph edge if center distance < 1.5 x median diameter
+
+# Spatial uniformity grids (image split into g x g tiles, density CV reported).
+uniformity:
+  grids: [3, 4]
+
+visualization:
+  show_instance_ids: true
+  min_area_for_id: 400      # only label instances with at least this many pixels
+  banner: true              # summary banner strip on top of each overlay
+
+postprocessing:
+  # Watershed fallback is intentionally disabled: merged masks are only flagged
+  # in Phase 1. Splitting is evaluated later against ground truth.
+  enable_watershed_fallback: false
+
+outputs:
+  dir: outputs

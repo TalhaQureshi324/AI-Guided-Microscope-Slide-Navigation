@@ -1,0 +1,47 @@
+2026-09-26 22:54:34,036 INFO    src.utils.image_io: Discovered 10 image(s) in D:\Semester 07\Courses\FYP\AI-Guided-Microscope-Slide-Navigation\Dataset
+2026-09-26 22:54:39,834 INFO    src.segmentation.cellpose_segmenter: Loading Cellpose model 'cpsam_v2' (device: CPU (CUDA not available))...
+2026-09-26 22:54:39,837 INFO    cellpose.core: >>>> using CPU
+2026-09-26 22:54:39,837 INFO    cellpose.core: >>>> using CPU
+2026-09-26 22:54:42,117 INFO    cellpose.models: >>>> loading model C:\Users\Talha Qureshi\.cellpose\models\cpsam_v2
+2026-09-26 22:54:43,304 INFO    src.segmentation.cellpose_segmenter: Model loaded in 3.5 s
+2026-09-26 22:54:43,308 DEBUG   PIL.Image: Importing JpegImagePlugin
+2026-09-26 22:54:43,329 DEBUG   PIL.TiffImagePlugin: tag: Software (305) - type: string (2) Tag Location: 22 - Data Location: 4170 - value: b'Windows 11\x00'
+2026-09-26 22:54:43,334 DEBUG   PIL.TiffImagePlugin: tag: ExifIFD (34665) - type: long (4) - value: b'\x00\x00\x10V'
+2026-09-26 22:54:43,334 DEBUG   PIL.TiffImagePlugin: tag: GPSInfoIFD (34853) - type: long (4) - value: b'\x00\x00 \xa2'
+2026-09-26 22:54:43,334 DEBUG   PIL.TiffImagePlugin: tag: unknown (59932) - type: undefined (7) Tag Location: 58 - Data Location: 62 - value: <table: 4108 bytes>
+2026-09-26 23:05:35,813 DEBUG   PIL.TiffImagePlugin: tag: Software (305) - type: string (2) Tag Location: 22 - Data Location: 4170 - value: b'Windows 11\x00'
+2026-09-26 23:05:35,813 DEBUG   PIL.TiffImagePlugin: tag: ExifIFD (34665) - type: long (4) - value: b'\x00\x00\x10V'
+2026-09-26 23:05:35,813 DEBUG   PIL.TiffImagePlugin: tag: GPSInfoIFD (34853) - type: long (4) - value: b'\x00\x00 \xa2'
+2026-09-26 23:05:35,813 DEBUG   PIL.TiffImagePlugin: tag: unknown (59932) - type: undefined (7) Tag Location: 58 - Data Location: 62 - value: <table: 4108 bytes>
+2026-09-26 23:16:28,953 DEBUG   PIL.TiffImagePlugin: tag: Software (305) - type: string (2) Tag Location: 22 - Data Location: 4170 - value: b'Windows 11\x00'
+2026-09-26 23:16:28,953 DEBUG   PIL.TiffImagePlugin: tag: ExifIFD (34665) - type: long (4) - value: b'\x00\x00\x10V'
+2026-09-26 23:16:28,953 DEBUG   PIL.TiffImagePlugin: tag: GPSInfoIFD (34853) - type: long (4) - value: b'\x00\x00 \xa2'
+2026-09-26 23:16:28,953 DEBUG   PIL.TiffImagePlugin: tag: unknown (59932) - type: undefined (7) Tag Location: 58 - Data Location: 62 - value: <table: 4108 bytes>
+2026-09-26 23:28:19,376 DEBUG   PIL.TiffImagePlugin: tag: Software (305) - type: string (2) Tag Location: 22 - Data Location: 4170 - value: b'Windows 11\x00'
+2026-09-26 23:28:19,376 DEBUG   PIL.TiffImagePlugin: tag: ExifIFD (34665) - type: long (4) - value: b'\x00\x00\x10V'
+2026-09-26 23:28:19,376 DEBUG   PIL.TiffImagePlugin: tag: GPSInfoIFD (34853) - type: long (4) - value: b'\x00\x00 \xa2'
+2026-09-26 23:28:19,376 DEBUG   PIL.TiffImagePlugin: tag: unknown (59932) - type: undefined (7) Tag Location: 58 - Data Location: 62 - value: <table: 4108 bytes>
+2026-09-26 23:42:37,657 DEBUG   PIL.TiffImagePlugin: tag: Software (305) - type: string (2) Tag Location: 22 - Data Location: 4170 - value: b'Windows 11\x00'
+2026-09-26 23:42:37,662 DEBUG   PIL.TiffImagePlugin: tag: ExifIFD (34665) - type: long (4) - value: b'\x00\x00\x10V'
+2026-09-26 23:42:37,662 DEBUG   PIL.TiffImagePlugin: tag: GPSInfoIFD (34853) - type: long (4) - value: b'\x00\x00 \xa2'
+2026-09-26 23:42:37,662 DEBUG   PIL.TiffImagePlugin: tag: unknown (59932) - type: undefined (7) Tag Location: 58 - Data Location: 62 - value: <table: 4108 bytes>
+2026-09-26 23:57:14,345 DEBUG   PIL.TiffImagePlugin: tag: Software (305) - type: string (2) Tag Location: 22 - Data Location: 4170 - value: b'Windows 11\x00'
+2026-09-26 23:57:14,345 DEBUG   PIL.TiffImagePlugin: tag: ExifIFD (34665) - type: long (4) - value: b'\x00\x00\x10V'
+2026-09-26 23:57:14,345 DEBUG   PIL.TiffImagePlugin: tag: GPSInfoIFD (34853) - type: long (4) - value: b'\x00\x00 \xa2'
+2026-09-26 23:57:14,345 DEBUG   PIL.TiffImagePlugin: tag: unknown (59932) - type: undefined (7) Tag Location: 58 - Data Location: 62 - value: <table: 4108 bytes>
+2026-09-27 00:07:31,351 DEBUG   PIL.TiffImagePlugin: tag: Software (305) - type: string (2) Tag Location: 22 - Data Location: 4170 - value: b'Windows 11\x00'
+2026-09-27 00:07:31,351 DEBUG   PIL.TiffImagePlugin: tag: ExifIFD (34665) - type: long (4) - value: b'\x00\x00\x10V'
+2026-09-27 00:07:31,352 DEBUG   PIL.TiffImagePlugin: tag: GPSInfoIFD (34853) - type: long (4) - value: b'\x00\x00 \xa2'
+2026-09-27 00:07:31,352 DEBUG   PIL.TiffImagePlugin: tag: unknown (59932) - type: undefined (7) Tag Location: 58 - Data Location: 62 - value: <table: 4108 bytes>
+2026-09-27 00:17:35,959 DEBUG   PIL.TiffImagePlugin: tag: Software (305) - type: string (2) Tag Location: 22 - Data Location: 4170 - value: b'Windows 11\x00'
+2026-09-27 00:17:35,959 DEBUG   PIL.TiffImagePlugin: tag: ExifIFD (34665) - type: long (4) - value: b'\x00\x00\x10V'
+2026-09-27 00:17:35,959 DEBUG   PIL.TiffImagePlugin: tag: GPSInfoIFD (34853) - type: long (4) - value: b'\x00\x00 \xa2'
+2026-09-27 00:17:35,959 DEBUG   PIL.TiffImagePlugin: tag: unknown (59932) - type: undefined (7) Tag Location: 58 - Data Location: 62 - value: <table: 4108 bytes>
+2026-09-27 00:29:29,814 DEBUG   PIL.TiffImagePlugin: tag: Software (305) - type: string (2) Tag Location: 22 - Data Location: 4170 - value: b'Windows 11\x00'
+2026-09-27 00:29:29,815 DEBUG   PIL.TiffImagePlugin: tag: ExifIFD (34665) - type: long (4) - value: b'\x00\x00\x10V'
+2026-09-27 00:29:29,815 DEBUG   PIL.TiffImagePlugin: tag: GPSInfoIFD (34853) - type: long (4) - value: b'\x00\x00 \xa2'
+2026-09-27 00:29:29,815 DEBUG   PIL.TiffImagePlugin: tag: unknown (59932) - type: undefined (7) Tag Location: 58 - Data Location: 62 - value: <table: 4108 bytes>
+2026-09-27 00:40:54,232 DEBUG   PIL.TiffImagePlugin: tag: Software (305) - type: string (2) Tag Location: 22 - Data Location: 4170 - value: b'Windows 11\x00'
+2026-09-27 00:40:54,232 DEBUG   PIL.TiffImagePlugin: tag: ExifIFD (34665) - type: long (4) - value: b'\x00\x00\x10V'
+2026-09-27 00:40:54,232 DEBUG   PIL.TiffImagePlugin: tag: GPSInfoIFD (34853) - type: long (4) - value: b'\x00\x00 \xa2'
+2026-09-27 00:40:54,232 DEBUG   PIL.TiffImagePlugin: tag: unknown (59932) - type: undefined (7) Tag Location: 58 - Data Location: 62 - value: <table: 4108 bytes>
