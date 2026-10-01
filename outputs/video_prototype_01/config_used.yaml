@@ -1,0 +1,133 @@
+# Configuration for the video-based monolayer-detection prototype
+# (Phases V1-V9, supervisor meeting revision 2026-09-28).
+#
+# EVERY threshold below is an experimental prototype value: nothing here is a
+# validated medical threshold. All ranges were chosen from measured data
+# (static baseline outputs + outputs/video_inspection) and must be re-tuned
+# once manually labelled keyframes exist (spec sections 13, 45).
+
+experiment:
+  name: video_prototype_01
+
+video:
+  path: Dataset/video_dataset.mp4
+  # work width for phase-correlation motion estimation (downscaled grayscale)
+  motion_work_width: 480
+
+model:
+  name: cpsam_v2
+  gpu: auto
+  # Explicit float32: the GTX 1080 Ti (Pascal, sm_61) has NO native bfloat16,
+  # so "auto" (= bfloat16 on CUDA) would hit a slow emulated path.
+  use_bfloat16: false
+
+segmentation:
+  # identical to the frozen static baseline (configs/default.yaml) so video
+  # fields are directly comparable with the 10-image experiment
+  diameter: null
+  cellprob_threshold: 0.0
+  flow_threshold: 0.4
+  min_size: 15
+  normalize: true
+  augment: false
+
+# ---- keyframe selection ----------------------------------------------------
+keyframes:
+  # Accumulated phase-correlation displacement (full-res px) required before a
+  # new field is accepted. 120 px (spec example) ~ 4 RBC diameters produced
+  # ~650 keyframes on this fast-moving video; 240 px ~ 8 diameters (median RBC
+  # diameter ~30 px from the static baseline) keeps fields meaningfully
+  # different. CONFIGURABLE - revisit with labelled data.
+  motion_threshold_px: 240
+  # Compute-budget guard for the prototype: minimum time between accepted
+  # keyframes even while moving. The motion gate stays NECESSARY; this only
+  # throttles the rate for benchmarking. Set to 0 to disable.
+  min_interval_sec: 2.0
+  # Accept a heartbeat keyframe at least this often (covers stationary
+  # periods; records illumination drift). Spec section 8: stationary periods
+  # must collapse to one/few representative fields.
+  heartbeat_sec: 15.0
+  # Gross motion-blur guard on variance-of-Laplacian. Calibrated on this
+  # video: sharpness barely separates sharp (stationary median ~15) from
+  # blurred (moving median ~16) brightfield footage, so this gate only
+  # rejects the worst smear (bottom ~5-10% of frames). Recorded sharpness
+  # values in results.csv allow offline re-thresholding.
+  blur_threshold: 5.0
+
+# ---- fast screening (spec section 24) ---------------------------------------
+fast_screen:
+  enabled: true
+  work_width: 480
+  # PLACEHOLDER gates - deliberately conservative (most fields -> UNCERTAIN)
+  # until calibrated against the Cellpose data collected in this run.
+  thick_occupancy_min: 0.62
+  thin_occupancy_max: 0.25
+  thick_edge_density_min: 0.35
+  thin_edge_density_max: 0.08
+  # false for this run: record screen verdict + cost on EVERY accepted field
+  # but never skip Cellpose, so the screen can be evaluated against real
+  # segmentation (spec sections 24-25: measure first, then decide).
+  decides_cellpose: false
+
+# ---- field analysis (spec section 11) ---------------------------------------
+field:
+  valid_roi_margin: 0.10          # central 80% x 80% is the valid region
+  contact_margin_fraction: 0.15   # contact if centre dist <= ri+rj+0.15*diam
+  neighbor_distance_threshold: 1.5  # close neighbour if dist < 1.5 * diameter
+  large_cluster_min_cells: 30
+  uniformity_grid: 4
+
+# ---- prototype classification (spec sections 13, 27, 45) --------------------
+classification:
+  # PROTOTYPE count gate: static-baseline hypothesis (full-frame candidate
+  # count, same FOV). NOT validated. Applied to the full-frame count so video
+  # fields stay directly comparable with outputs/cpsam_v2_baseline.
+  prototype_count_min: 950
+  prototype_count_max: 1050
+  min_signals: 2                  # independent signals needed for THICK/THIN
+  thick_coverage_min: 0.45
+  thick_degree_min: 1.8
+  thick_cluster_frac_min: 0.75
+  thin_coverage_max: 0.25
+  thin_nn_norm_min: 1.35
+  monolayer_score_min: 0.60
+
+# ---- prototype monolayer score (spec section 26) ----------------------------
+monolayer_score:
+  # Triangular suitability ranges anchored to the 10 static baseline images
+  # (assumed monolayer-like): coverage 0.34-0.39, normalized NN 0.96-1.07,
+  # density ~450-540 cells/Mpx. Wing = linear falloff width outside the range.
+  density_lo: 450.0
+  density_hi: 560.0
+  density_wing: 150.0
+  coverage_lo: 0.33
+  coverage_hi: 0.42
+  coverage_wing: 0.12
+  spacing_lo: 0.95
+  spacing_hi: 1.10
+  spacing_wing: 0.30
+  uniformity_cv_ref: 0.25         # density CV at which uniformity component = 0
+  # Interpretable first weights - NOT calibrated (spec: no invented authority).
+  weights:
+    comp_density: 0.25
+    comp_coverage: 0.20
+    comp_spacing: 0.20
+    comp_low_crowding: 0.15
+    comp_low_clustering: 0.10
+    comp_uniformity: 0.10
+
+# ---- temporal smoothing (spec sections 28-29) --------------------------------
+temporal:
+  alpha: 0.4                      # EMA weight of the newest keyframe score
+  window: 5                       # majority vote over last N accepted fields
+
+# ---- output (spec sections 33-37) --------------------------------------------
+visualization:
+  mode: presentation              # presentation | debug (debug saves ID overlays)
+outputs:
+  dir: outputs
+  experiment_dir: video_prototype_01
+  save_keyframes: true
+  save_masks: true
+  save_debug_overlays: true       # full static-style overlay per keyframe
+  write_annotated_video: true

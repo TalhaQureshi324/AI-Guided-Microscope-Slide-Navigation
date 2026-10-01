@@ -1,0 +1,142 @@
+{
+  "experiment": "video_prototype_01",
+  "video_name": "video_dataset.mp4",
+  "duration_sec": 196.7,
+  "width": 1920,
+  "height": 1080,
+  "fps_avg": 35.769,
+  "raw_frames": 7036,
+  "accepted_keyframes": 78,
+  "keyframes_with_cellpose": 78,
+  "keyframes_fast_only": 0,
+  "skipped_stationary": 2184,
+  "skipped_rate_limit": 4195,
+  "skipped_blur": 579,
+  "class_raw": {
+    "TOO_THIN": 60,
+    "TOO_THICK": 3,
+    "UNCERTAIN": 13,
+    "MONOLAYER": 2
+  },
+  "class_smoothed": {
+    "TOO_THIN": 62,
+    "UNCERTAIN": 12,
+    "MONOLAYER": 4
+  },
+  "longest_monolayer_run_keyframes": 4,
+  "longest_monolayer_run_sec": 8.1,
+  "rbc_count_min": 6,
+  "rbc_count_median": 20.0,
+  "rbc_count_max": 1003,
+  "raw_score_min": 0.167,
+  "raw_score_median": 0.234,
+  "raw_score_max": 0.821,
+  "cellpose_ms_mean": 10932.3,
+  "cellpose_ms_median": 10878.9,
+  "cellpose_ms_first": 11299.015099999451,
+  "warmup_inference_ms": 3342.5,
+  "feature_ms_mean": 5415.1,
+  "total_ms_per_keyframe_mean": 16541.3,
+  "total_ms_per_keyframe_median": 14248.2,
+  "model_load_s": 7.68,
+  "decode_ms_total": 30108.9,
+  "motion_quality_ms_per_frame_mean": 49.65,
+  "render_encode_ms_total": 118695.9,
+  "total_pipeline_sec": 1784.5,
+  "estimated_analysis_fps": 0.044,
+  "device": "CUDA - NVIDIA GeForce GTX 1080 Ti",
+  "gpu_name": "NVIDIA GeForce GTX 1080 Ti",
+  "cuda_version": "12.1",
+  "precision": "float32",
+  "peak_gpu_mem_mb": 3146.5,
+  "config": {
+    "experiment": {
+      "name": "video_prototype_01"
+    },
+    "video": {
+      "path": "Dataset/video_dataset.mp4",
+      "motion_work_width": 480
+    },
+    "model": {
+      "name": "cpsam_v2",
+      "gpu": "auto",
+      "use_bfloat16": false
+    },
+    "segmentation": {
+      "diameter": null,
+      "cellprob_threshold": 0.0,
+      "flow_threshold": 0.4,
+      "min_size": 15,
+      "normalize": true,
+      "augment": false
+    },
+    "keyframes": {
+      "motion_threshold_px": 240,
+      "min_interval_sec": 2.0,
+      "heartbeat_sec": 15.0,
+      "blur_threshold": 5.0
+    },
+    "fast_screen": {
+      "enabled": true,
+      "work_width": 480,
+      "thick_occupancy_min": 0.62,
+      "thin_occupancy_max": 0.25,
+      "thick_edge_density_min": 0.35,
+      "thin_edge_density_max": 0.08,
+      "decides_cellpose": false
+    },
+    "field": {
+      "valid_roi_margin": 0.1,
+      "contact_margin_fraction": 0.15,
+      "neighbor_distance_threshold": 1.5,
+      "large_cluster_min_cells": 30,
+      "uniformity_grid": 4
+    },
+    "classification": {
+      "prototype_count_min": 950,
+      "prototype_count_max": 1050,
+      "min_signals": 2,
+      "thick_coverage_min": 0.45,
+      "thick_degree_min": 1.8,
+      "thick_cluster_frac_min": 0.75,
+      "thin_coverage_max": 0.25,
+      "thin_nn_norm_min": 1.35,
+      "monolayer_score_min": 0.6
+    },
+    "monolayer_score": {
+      "density_lo": 450.0,
+      "density_hi": 560.0,
+      "density_wing": 150.0,
+      "coverage_lo": 0.33,
+      "coverage_hi": 0.42,
+      "coverage_wing": 0.12,
+      "spacing_lo": 0.95,
+      "spacing_hi": 1.1,
+      "spacing_wing": 0.3,
+      "uniformity_cv_ref": 0.25,
+      "weights": {
+        "comp_density": 0.25,
+        "comp_coverage": 0.2,
+        "comp_spacing": 0.2,
+        "comp_low_crowding": 0.15,
+        "comp_low_clustering": 0.1,
+        "comp_uniformity": 0.1
+      }
+    },
+    "temporal": {
+      "alpha": 0.4,
+      "window": 5
+    },
+    "visualization": {
+      "mode": "presentation"
+    },
+    "outputs": {
+      "dir": "outputs",
+      "experiment_dir": "video_prototype_01",
+      "save_keyframes": true,
+      "save_masks": true,
+      "save_debug_overlays": true,
+      "write_annotated_video": true
+    }
+  }
+}

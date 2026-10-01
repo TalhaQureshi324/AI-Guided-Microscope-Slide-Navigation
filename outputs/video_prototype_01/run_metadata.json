@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-09-28T16:29:04",
+  "git_commit": "ad5eeaa",
+  "platform": "Windows-11-10.0.26100-SP0",
+  "processor": "Intel64 Family 6 Model 158 Stepping 9, GenuineIntel",
+  "python": "3.12.7",
+  "python_executable": "C:\\Users\\assad\\Miniforge3n\\envs\\cellpose_env\\python.exe",
+  "torch": "2.5.1+cu121",
+  "cuda_available": true,
+  "cuda_version": "12.1",
+  "cudnn_version": 90100,
+  "device": "CUDA - NVIDIA GeForce GTX 1080 Ti",
+  "cellpose_version": "4.2.1.1",
+  "experiment": "video_prototype_01",
+  "video": "C:\\AI-Guided Microscope Slide Navigation\\Dataset\\video_dataset.mp4",
+  "model_load_s": 7.68,
+  "gpu_name": "NVIDIA GeForce GTX 1080 Ti",
+  "precision": "float32",
+  "peak_gpu_mem_mb": 3146.467328
+}

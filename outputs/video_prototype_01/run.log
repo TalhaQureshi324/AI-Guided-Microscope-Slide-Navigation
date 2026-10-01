@@ -1,0 +1,34 @@
+2026-09-28 15:59:12,139 INFO    process_video: ======================================================================
+2026-09-28 15:59:12,139 INFO    process_video: VIDEO PROTOTYPE RUN  experiment=video_prototype_01
+2026-09-28 15:59:12,139 INFO    process_video: video=C:\AI-Guided Microscope Slide Navigation\Dataset\video_dataset.mp4
+2026-09-28 15:59:12,234 INFO    process_video: meta: 1920x1080 @ 35.77 fps, 7036 frames
+2026-09-28 15:59:16,767 WARNING cellpose.vit: Could not import CPDINO, run `pip install git+https://github.com/facebookresearch/dinov3` to use CPDINO model
+2026-09-28 15:59:16,819 INFO    src.segmentation.cellpose_segmenter: Loading Cellpose model 'cpsam_v2' (device: CUDA - NVIDIA GeForce GTX 1080 Ti)...
+2026-09-28 15:59:16,922 INFO    cellpose.core: ** TORCH CUDA version installed and working. **
+2026-09-28 15:59:16,922 INFO    cellpose.core: >>>> using GPU (CUDA)
+2026-09-28 15:59:19,152 INFO    cellpose.models: >>>> loading model C:\Users\assad\.cellpose\models\cpsam_v2
+2026-09-28 15:59:19,916 INFO    src.segmentation.cellpose_segmenter: Model loaded in 3.1 s
+2026-09-28 15:59:19,916 INFO    process_video: model 'cpsam_v2' loaded in 7.7 s on CUDA - NVIDIA GeForce GTX 1080 Ti (bfloat16=False)
+2026-09-28 15:59:23,292 INFO    process_video: GPU warm-up inference (960x540): 3343 ms
+2026-09-28 15:59:34,666 INFO    process_video: first (post-warmup-implicit) inference: 11299 ms
+2026-09-28 15:59:38,681 INFO    process_video: KF    1 | f    0 t=   0.0s | TOO_THIN  raw 0.24 smooth 0.24 | RBC   31 cov 0.09 nn 1.96 | cellpose 11299ms feat 3971ms
+2026-09-28 16:01:01,400 INFO    process_video: KF    5 | f  432 t=  12.1s | TOO_THIN  raw 0.23 smooth 0.24 | RBC   13 cov 0.07 nn 2.12 | cellpose 11244ms feat 1923ms
+2026-09-28 16:02:37,110 INFO    process_video: KF   10 | f  792 t=  22.2s | TOO_THIN  raw 0.23 smooth 0.23 | RBC   11 cov 0.08 nn 5.11 | cellpose 11604ms feat 3466ms
+2026-09-28 16:04:09,244 INFO    process_video: KF   15 | f 1152 t=  32.2s | TOO_THIN  raw 0.24 smooth 0.23 | RBC   18 cov 0.09 nn 2.76 | cellpose 10638ms feat 4592ms
+2026-09-28 16:05:40,441 INFO    process_video: KF   20 | f 1512 t=  42.3s | TOO_THIN  raw 0.20 smooth 0.22 | RBC   19 cov 0.06 nn 1.67 | cellpose 10536ms feat 3884ms
+2026-09-28 16:07:11,707 INFO    process_video: KF   25 | f 1872 t=  52.3s | TOO_THIN  raw 0.21 smooth 0.22 | RBC   23 cov 0.09 nn 1.72 | cellpose 10881ms feat 2003ms
+2026-09-28 16:08:45,015 INFO    process_video: KF   30 | f 2232 t=  62.4s | TOO_THIN  raw 0.20 smooth 0.22 | RBC   23 cov 0.17 nn 1.42 | cellpose 10774ms feat 4124ms
+2026-09-28 16:10:15,922 INFO    process_video: KF   35 | f 2592 t=  72.5s | TOO_THIN  raw 0.24 smooth 0.23 | RBC   27 cov 0.09 nn 2.03 | cellpose 10618ms feat 4113ms
+2026-09-28 16:11:45,360 INFO    process_video: KF   40 | f 2952 t=  82.5s | TOO_THIN  raw 0.24 smooth 0.23 | RBC   12 cov 0.02 nn 3.62 | cellpose 10801ms feat  630ms
+2026-09-28 16:13:18,242 INFO    process_video: KF   45 | f 3406 t=  95.2s | TOO_THIN  raw 0.24 smooth 0.23 | RBC   12 cov 0.03 nn 4.34 | cellpose 10543ms feat 3196ms
+2026-09-28 16:14:56,119 INFO    process_video: KF   50 | f 3766 t= 105.3s | TOO_THIN  raw 0.21 smooth 0.20 | RBC   20 cov 0.07 nn 1.33 | cellpose 11119ms feat 1847ms
+2026-09-28 16:16:57,488 INFO    process_video: KF   55 | f 4301 t= 120.3s | TOO_THIN  raw 0.31 smooth 0.24 | RBC   47 cov 0.09 nn 1.18 | cellpose 11034ms feat 5153ms
+2026-09-28 16:19:15,465 INFO    process_video: KF   60 | f 4661 t= 130.3s | TOO_THIN  raw 0.33 smooth 0.31 | RBC  244 cov 0.18 nn 1.05 | cellpose 11249ms feat 12365ms
+2026-09-28 16:22:07,697 INFO    process_video: KF   65 | f 5021 t= 140.4s | UNCERTAIN raw 0.50 smooth 0.48 | RBC  591 cov 0.32 nn 1.02 | cellpose 10877ms feat 19011ms
+2026-09-28 16:25:20,958 INFO    process_video: KF   70 | f 5731 t= 160.2s | UNCERTAIN raw 0.77 smooth 0.59 | RBC  920 cov 0.38 nn 0.97 | cellpose 10981ms feat 22980ms
+2026-09-28 16:27:36,599 INFO    process_video: KF   75 | f 6327 t= 176.9s | UNCERTAIN raw 0.62 smooth 0.67 | RBC  804 cov 0.33 nn 1.03 | cellpose 10888ms feat 7674ms
+2026-09-28 16:29:04,745 INFO    process_video: ----------------------------------------------------------------------
+2026-09-28 16:29:04,745 INFO    process_video: DONE raw frames=7036 keyframes=78 (cellpose 78) total 29.7 min
+2026-09-28 16:29:04,745 INFO    process_video: class raw: {'TOO_THIN': 60, 'TOO_THICK': 3, 'UNCERTAIN': 13, 'MONOLAYER': 2}
+2026-09-28 16:29:04,745 INFO    process_video: class smoothed: {'TOO_THIN': 62, 'UNCERTAIN': 12, 'MONOLAYER': 4}
+2026-09-28 16:29:04,745 INFO    process_video: outputs -> C:\AI-Guided Microscope Slide Navigation\outputs\video_prototype_01
