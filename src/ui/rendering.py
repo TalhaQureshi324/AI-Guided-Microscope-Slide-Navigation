@@ -56,12 +56,11 @@ def build_result_layers(labels: np.ndarray, rows: List[Dict],
         edge_labels = labels[edges]
         layer[edges] = lut[np.clip(edge_labels, 0, max_label)]
 
-    # merge suspects: thick orange outline (project style)
+    # merge suspects: THICK orange outline + orange centroid marker (§17/§44)
     if merge_ids:
-        big = {int(i) for i in merge_ids}
-        mask = np.isin(labels, list(big)).astype(np.uint8)
+        mask = np.isin(labels, sorted(merge_ids)).astype(np.uint8)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        cv2.drawContours(layer, contours, -1, COLOR_MERGE, 2)
+        cv2.drawContours(layer, contours, -1, COLOR_MERGE, 3)
 
     id_layer = None
     if debug_ids:
@@ -71,10 +70,14 @@ def build_result_layers(labels: np.ndarray, rows: List[Dict],
         if not row.get("rbc_candidate"):
             continue
         x, y = int(round(row["centroid_x"])), int(round(row["centroid_y"]))
-        cv2.circle(layer, (x, y), 2, COLOR_CENTROID, -1)
+        if row.get("possible_merged_rbc"):
+            cv2.circle(layer, (x, y), 3, COLOR_MERGE, -1)  # orange centre marker
+        else:
+            cv2.circle(layer, (x, y), 2, COLOR_CENTROID, -1)
         if id_layer is not None and row["area_px"] >= 400:
+            colour = COLOR_MERGE if row.get("possible_merged_rbc") else COLOR_CENTROID
             cv2.putText(id_layer, str(row["instance_id"]), (x + 3, y - 3),
-                        _FONT, 0.32, COLOR_CENTROID, 1, cv2.LINE_AA)
+                        _FONT, 0.32, colour, 1, cv2.LINE_AA)
     return layer, id_layer
 
 

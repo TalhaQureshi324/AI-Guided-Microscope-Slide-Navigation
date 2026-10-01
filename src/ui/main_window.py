@@ -25,8 +25,8 @@ import numpy as np
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtWidgets import (
-    QApplication, QFrame, QGridLayout, QHBoxLayout, QLabel, QMainWindow,
-    QPushButton, QVBoxLayout, QWidget,
+    QApplication, QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget,
+    QListWidgetItem, QMainWindow, QPushButton, QVBoxLayout, QWidget,
 )
 
 from src.live.controller import LiveFieldController
@@ -96,17 +96,19 @@ class ScanStrip(QFrame):
 
 class MainWindow(QMainWindow):
     def __init__(self, state: SharedState, controller: LiveFieldController,
-                 cfg: Dict, session=None, view_only: bool = False):
+                 cfg: Dict, session=None, view_only: bool = False, jobmgr=None):
         super().__init__()
         self.state = state
         self.controller = controller
         self.cfg = cfg
         self.session = session
+        self.jobmgr = jobmgr
         self.view_only = view_only
         self.ui_fps = 0.0
         self._ui_frames = 0
         self._ui_fps_t = time.perf_counter()
         self._last_banner_state = False
+        self._selected_job_id: Optional[int] = None   # job viewer selection
 
         self.setWindowTitle("AI-Guided Microscope Navigation - live perception")
         self.resize(1600, 940)
@@ -114,8 +116,40 @@ class MainWindow(QMainWindow):
         central = QWidget()
         root = QHBoxLayout(central)
 
-        # ---- viewport + banner column -----------------------------------
+        # ---- left column: controls + viewport + banner -------------------
         left = QVBoxLayout()
+        controls = QHBoxLayout()
+        self.btn_capture = QPushButton("  CAPTURE & ANALYZE  ")
+        self.btn_capture.setStyleSheet(
+            "background:#2e7d32; color:white; font-size:14px; font-weight:bold;"
+            "padding:8px 18px; border:1px solid #1b5e20;"
+        )
+        self.btn_capture.setToolTip("Capture the current microscope field and "
+                                    "analyze it in the background (camera stays live)")
+        self.btn_capture.clicked.connect(self._on_capture)
+        controls.addWidget(self.btn_capture)
+
+        self.btn_auto = QPushButton("Auto Analyze: ON")
+        self.btn_auto.setStyleSheet("padding:8px 12px;")
+        self.btn_auto.setToolTip("Automatic field detection (motion-based). "
+                                 "OFF = analyze only manual captures.")
+        self.btn_auto.clicked.connect(self._on_toggle_auto)
+        controls.addWidget(self.btn_auto)
+
+        self.btn_live = QPushButton("● LIVE")
+        self.btn_live.setStyleSheet("padding:8px 12px;")
+        self.btn_live.setToolTip("Return the viewport to the live feed")
+        self.btn_live.clicked.connect(self._on_view_live)
+        controls.addWidget(self.btn_live)
+
+        self.btn_snapshot = QPushButton("SAVE SNAPSHOT")
+        self.btn_snapshot.setStyleSheet("padding:8px 12px;")
+        self.btn_snapshot.setToolTip("Save the current frame WITHOUT Cellpose")
+        self.btn_snapshot.clicked.connect(self._on_snapshot)
+        controls.addWidget(self.btn_snapshot)
+        controls.addStretch(1)
+        left.addLayout(controls)
+
         self.viewport = QLabel("waiting for source ...")
         self.viewport.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.viewport.setMinimumSize(960, 540)
@@ -182,6 +216,16 @@ class MainWindow(QMainWindow):
         pv.addLayout(grid)
 
         pv.addWidget(QLabel(""))
+        jobs_title = QLabel("ANALYSIS JOBS  (click a completed job to inspect it)")
+        jobs_title.setStyleSheet("color:#9e9e9e; font-size:12px;")
+        pv.addWidget(jobs_title)
+        self.job_list = QListWidget()
+        self.job_list.setFixedHeight(180)
+        self.job_list.setStyleSheet(
+            "background:#0d0d0d; color:#d6d6d6; font-size:12px; border:1px solid #333;")
+        self.job_list.itemClicked.connect(self._on_job_selected)
+        pv.addWidget(self.job_list)
+
         strip_label = QLabel("SCAN HISTORY")
         strip_label.setStyleSheet("color:#9e9e9e; font-size:12px;")
         pv.addWidget(strip_label)
@@ -212,9 +256,46 @@ class MainWindow(QMainWindow):
         self._panel_timer.start(250)
 
     # ------------------------------------------------------------------
+    # manual capture workflow (Phase G1/G3/G9)
+    def _on_capture(self):
+        with self.state.lock:
+            self.state.manual_requests += 1
+        self.statusBar().showMessage("CAPTURE requested - job queued, camera stays live", 2000)
+
+    def _on_toggle_auto(self):
+        with self.state.lock:
+            self.state.auto_analysis_enabled = not self.state.auto_analysis_enabled
+            on = self.state.auto_analysis_enabled
+        self.btn_auto.setText(f"Auto Analyze: {'ON' if on else 'OFF'}")
+        self.statusBar().showMessage(
+            "AUTO analysis enabled" if on else
+            "AUTO analysis OFF - Cellpose runs only on CAPTURE & ANALYZE", 3000)
+
+    def _on_view_live(self):
+        self._selected_job_id = None
+        with self.state.lock:
+            self.state.view_job_id = None
+
+    def _on_snapshot(self):
+        with self.state.lock:
+            self.state.snapshot_requests += 1
+        self.statusBar().showMessage("snapshot will be saved (no Cellpose)", 2000)
+
+    def _on_job_selected(self, item):
+        job_id = item.data(Qt.ItemDataRole.UserRole)
+        if job_id is not None:
+            self._selected_job_id = job_id
+            with self.state.lock:
+                self.state.view_job_id = job_id
+
+    def _selected_completed_job(self):
+        if self._selected_job_id is None or self.jobmgr is None:
+            return None
+        return self.jobmgr.get_completed(self._selected_job_id)
+
+    # ------------------------------------------------------------------
     def _render_tick(self) -> None:
         snap = self.state.snapshot_display()
-        frame = snap["frame"]
         self._ui_frames += 1
         now = time.perf_counter()
         if now - self._ui_fps_t >= 1.0:
@@ -222,6 +303,33 @@ class MainWindow(QMainWindow):
             self._ui_frames = 0
             self._ui_fps_t = now
 
+        # ---- job viewer: a selected completed job owns the viewport ------
+        viewing_job = self._selected_completed_job()
+        if viewing_job is not None and viewing_job.frame is not None:
+            img = viewing_job.frame.copy()
+            if snap["outlines_on"] and viewing_job.overlay_layer is not None:
+                img = cv2.bitwise_or(img, viewing_job.overlay_layer)
+                if snap["debug_ids"] and viewing_job.id_layer is not None:
+                    img = cv2.bitwise_or(img, viewing_job.id_layer)
+            colour = CLASS_COLOURS_BGR.get(viewing_job.raw_class, _GREY)
+            frame = draw_class_border(img, colour, thickness=6)
+            merges = (viewing_job.features or {}).get("merge_suspect_count", "?")
+            lines = [
+                (f"JOB #{viewing_job.job_id}  [{viewing_job.priority}]", _GREY),
+                (f"RESULT: {viewing_job.raw_class}   score {viewing_job.score:.2f}",
+                 CLASS_COLOURS_BGR.get(viewing_job.raw_class, _GREY)),
+                (f"RBCs {(viewing_job.features or {}).get('rbc_candidate_count', '?')}"
+                 f"   coverage {(viewing_job.features or {}).get('coverage', 0) * 100:.0f}%"
+                 f"   merge suspects {merges}", _GREY),
+                (f"press ● LIVE to return to the camera feed", _GREY),
+            ]
+            frame = draw_live_hud(frame, lines)
+            self.viewport.setPixmap(QPixmap.fromImage(_np_to_qimage(frame)))
+            self._latest = {"snap": snap, "stale": False, "age": None, "frame": frame,
+                            "job": viewing_job}
+            return
+
+        frame = snap["frame"]
         if frame is None:
             if self.state.source_error:
                 img = np.zeros((540, 960, 3), dtype=np.uint8)
@@ -238,12 +346,12 @@ class MainWindow(QMainWindow):
         result_age = None
         if result is not None:
             net_x, net_y = self.state.current_net()
-            stale = result.field.is_stale(
+            stale = result.is_stale(
                 net_x, net_y, now,
                 self.cfg.get("result_stale_displacement", 160.0),
                 self.cfg.get("result_stale_seconds", 25.0),
             )
-            result_age = now - result.field.t_capture
+            result_age = now - result.t_capture
             if snap["outlines_on"] and result.overlay_layer is not None:
                 frame = cv2.bitwise_or(frame, result.overlay_layer)
                 if snap["debug_ids"] and result.id_layer is not None:
@@ -322,12 +430,12 @@ class MainWindow(QMainWindow):
             self.status_top.setText("no detailed result yet")
         else:
             net_x, net_y = self.state.current_net()
-            stale = result.field.is_stale(
+            stale = result.is_stale(
                 net_x, net_y, now,
                 self.cfg.get("result_stale_displacement", 160.0),
                 self.cfg.get("result_stale_seconds", 25.0))
             f = result.features
-            age = now - result.field.t_capture
+            age = now - result.t_capture
             border = sum(1 for x in result.rows
                          if x.get("rbc_candidate") and x.get("touches_border"))
             colour = _QT_COLORS.get("STALE" if stale else result.raw_class, "#ececec")
@@ -357,20 +465,35 @@ class MainWindow(QMainWindow):
             self._set("smoothed_class", result.smoothed_class or ("n/a (stale)" if stale else "-"))
             self._set("age", f"{age:.1f} s{'  [STALE]' if stale else ''}")
             self._set("meta",
-                      f"f{result.field.frame_idx} | {result.feature_mode} mode | "
+                      f"job #{result.job_id} f{result.frame_idx} | {result.feature_mode} mode | "
                       f"cellpose {result.cellpose_ms / 1000:.1f}s | features {result.features_ms / 1000:.1f}s")
 
         cp = snap["cellpose_state"]
         cp_txt = ("PROCESSING previous field ..." if cp == "PROCESSING"
                   else "loading model ..." if cp == "LOADING_MODEL" else cp)
+
+        # manual workflow status (Phase G1/G3)
+        jobs_txt = ""
+        if self.jobmgr is not None:
+            stats = self.jobmgr.stats()
+            jobs_txt = (f"jobs: {stats['total_jobs']} total | queue: "
+                        f"manual {stats['waiting_manual']}, "
+                        f"auto pending {1 if stats['waiting_auto'] else 0}")
+            last_m = snap["last_manual"]
+            if last_m is not None and last_m.raw_class:
+                lbl = f" | human: {last_m.human_label}" if last_m.human_label else ""
+                jobs_txt += (f"\nlatest capture: job #{last_m.job_id} "
+                             f"{last_m.raw_class} score {last_m.score:.2f}{lbl}")
+
         self.status_top.setText(
             f"Cellpose: {cp_txt}\n"
-            f"analyses: {snap['analysis_count']} | superseded pending: "
-            f"{snap['pending_superseded']} (latest-frame policy)\n"
-            f"current field: LIVE - detailed result applies to its captured position"
+            f"analyses: {snap['analysis_count']} | superseded auto: "
+            f"{self.jobmgr.superseded_auto if self.jobmgr else 0} (latest-frame policy)"
+            + (f"\n{jobs_txt}" if jobs_txt else "")
         )
+        self._refresh_job_list()
         self.scan_strip.set_history(list(self.state.history),
-                                    self.state.current_cum(),
+                                    self.state.current_net()[0],
                                     self.state.cum_y)
         self.statusBar().showMessage(
             f"● {self.state_source} | capture {snap['capture_fps']:.1f} fps | "
@@ -380,6 +503,41 @@ class MainWindow(QMainWindow):
 
     def _set(self, key: str, value) -> None:
         self.metrics[key].setText(str(value))
+
+    def _refresh_job_list(self) -> None:
+        if self.jobmgr is None:
+            return
+        rows = self.jobmgr.snapshot_jobs(10)
+        signature = "|".join(
+            f"{r['job_id']}:{r['status']}:{r['raw_class']}:{r['human_label']}"
+            for r in rows)
+        if signature == getattr(self, "_job_sig", None):
+            return
+        self._job_sig = signature
+        self.job_list.clear()
+        for r in reversed(rows):  # newest first
+            status = r["status"]
+            if status == "COMPLETE":
+                text = (f"#{r['job_id']:03d}  ✓ {r['raw_class']}   "
+                        f"score {r['score']:.2f}"
+                        + (f"  [human: {r['human_label']}]" if r["human_label"] else ""))
+                colour = _QT_COLORS.get(r["raw_class"] or "", "#d6d6d6")
+            elif status == "FAILED":
+                text = f"#{r['job_id']:03d}  FAILED - {r['error']}"
+                colour = "#d32f2f"
+            else:
+                text = f"#{r['job_id']:03d}  {status}  [{r['priority']}]"
+                colour = "#9e9e9e"
+            item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, r["job_id"])
+            item.setForeground(self._qt_colour(colour))
+            self.job_list.addItem(item)
+
+    @staticmethod
+    def _qt_colour(hex_colour: str):
+        from PyQt6.QtGui import QColor
+
+        return QColor(hex_colour)
 
     @property
     def state_source(self) -> str:
@@ -416,9 +574,18 @@ class MainWindow(QMainWindow):
             with st.lock:
                 st.recording = not st.recording
         elif key in ("m", "t", "n", "u"):
-            if self.session is not None and hasattr(self, "_latest"):
+            if self.session is None:
+                return
+            # label the SELECTED completed job when one is chosen (spec §29);
+            # otherwise label the current live frame as before
+            job = self._selected_completed_job()
+            if job is not None:
+                self.session.save_label(key, job.frame, job)
+            elif hasattr(self, "_latest"):
                 self.session.save_label(key, self._latest["frame"],
                                         self._latest["snap"]["result"])
+            self.statusBar().showMessage(
+                f"human label '{key.upper()}' saved", 2000)
         else:
             super().keyPressEvent(ev)
 
