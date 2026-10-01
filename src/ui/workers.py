@@ -392,6 +392,7 @@ class AnalysisWorker(threading.Thread):
                 row["n_dt_peaks"] = 0
 
         f_cfg = self.cfg
+        ref_frame = f_cfg.get("reference_frame") or None
         features = compute_field_features(
             rows, labels, ref,
             valid_roi_margin=f_cfg.get("valid_roi_margin", 0.10),
@@ -399,6 +400,7 @@ class AnalysisWorker(threading.Thread):
             neighbor_distance_threshold=f_cfg.get("neighbor_distance_threshold", 1.5),
             large_cluster_min_cells=f_cfg.get("large_cluster_min_cells", 30),
             uniformity_grid=f_cfg.get("uniformity_grid", 4),
+            reference_shape=tuple(ref_frame) if ref_frame else None,
         )
         score, comps = prototype_monolayer_score(features, self.cfg["monolayer_score_cfg"])
         raw_class, _evidence = classify_field(features, score, self.cfg["classification_cfg"])

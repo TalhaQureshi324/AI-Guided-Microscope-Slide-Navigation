@@ -52,12 +52,28 @@ def compute_field_features(
     neighbor_distance_threshold: float = 1.5,
     large_cluster_min_cells: int = 30,
     uniformity_grid: int = 4,
+    reference_shape: Optional[Tuple[int, int]] = None,
 ) -> Dict:
-    """Compute all per-field features for one keyframe (schema of spec §35)."""
+    """Compute all per-field features for one keyframe (schema of spec §35).
+
+    ``reference_shape``: (width, height) of the calibration FOV (default
+    1920x1080 - the static-baseline camera). Density is expressed per
+    REFERENCE-FOV Mpx so that a smaller camera sampling the SAME optical
+    field yields the same density (raw px/Mpx would inflate ~5.8x on an
+    800x448 sensor and wrongly drag the score's density component to 0).
+    Ratios (coverage, NN/diam, CV) are resolution-invariant already.
+    """
     h, w = labels.shape
     x0, y0, x1, y1 = valid_roi(labels.shape, valid_roi_margin)
     roi_w, roi_h = x1 - x0, y1 - y0
     roi_area = float(roi_w * roi_h)
+
+    # FOV-normalised ROI area: how many reference-frame Mpx this ROI covers.
+    if reference_shape:
+        ref_area = float(reference_shape[0] * reference_shape[1])
+        roi_area_ref_mpx = roi_area * (ref_area / float(w * h)) / 1.0e6
+    else:
+        roi_area_ref_mpx = roi_area / 1.0e6
 
     candidates = [r for r in rows if r.get("rbc_candidate")]
     median_diameter = ref.get("median_diameter_px", float("nan"))
@@ -106,7 +122,7 @@ def compute_field_features(
     ]
     n = len(valid)
     features["valid_region_rbc_count"] = n
-    features["rbc_density"] = float(n / (roi_area / 1.0e6)) if roi_area > 0 else float("nan")
+    features["rbc_density"] = float(n / roi_area_ref_mpx) if roi_area_ref_mpx > 0 else float("nan")
 
     if n == 0 or not np.isfinite(median_diameter) or median_diameter <= 0:
         return features
@@ -182,7 +198,7 @@ def compute_field_features(
     local = np.histogram2d(
         pts[:, 1] - y0, pts[:, 0] - x0, bins=(uniformity_grid, uniformity_grid),
         range=[[0, roi_h], [0, roi_w]],
-    )[0] / (roi_area / 1.0e6)
+    )[0] / roi_area_ref_mpx
     mean_d = float(local.mean())
     features.update(
         density_mean_per_mpx=mean_d,

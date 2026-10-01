@@ -64,6 +64,12 @@ contact_margin_fraction: 0.15
 neighbor_distance_threshold: 1.5
 large_cluster_min_cells: 30
 uniformity_grid: 4
+# FOV reference for density normalisation: RBC density is reported per
+# reference-frame Mpx so a smaller camera sampling the SAME optical field
+# (verified: ~1000 cells at 800x448, same as the 1080p baseline) keeps the
+# score's density component meaningful. Must match the camera that produced
+# the score ranges below (the 1920x1080 static baseline).
+reference_frame: [1920, 1080]
 small_area_factor: 0.35
 wbc_area_factor: 3.5
 merge_area_factor_min: 1.6
