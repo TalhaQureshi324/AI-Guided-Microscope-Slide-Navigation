@@ -111,6 +111,18 @@ temporal_alpha: 0.4
 temporal_window: 5
 monolayer_score_min: 0.60
 
+# ---- analysis jobs & workers (Phase G1-G8) -----------------------------------
+analysis:
+  gpu_workers: 1               # concurrent Cellpose models - BENCHMARK before
+                               # raising (each ~3.1 GB VRAM on the 1080 Ti)
+  cpu_feature_workers: 2       # parallel feature/merge analysis (CPU stage)
+max_manual_queue: 20           # manual captures are never silently discarded;
+                               # when full, CAPTURE is refused loudly
+auto_analysis_enabled: true    # Auto Analyze ON at launch (toggle in the GUI)
+manual_analysis:
+  detailed_features: true      # manual captures always get the full treatment
+  merge_analysis: true         # incl. DT merge suspects (orange outlines)
+
 # ---- result freshness (spec §15-16) -------------------------------------------
 result_stale_displacement: 160.0   # px of movement that voids a result
 result_stale_seconds: 25.0

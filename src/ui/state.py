@@ -1,17 +1,16 @@
-"""Thread-safe shared state between capture, analysis worker and the UI.
+"""Thread-safe shared state between capture, analysis workers and the UI.
 
-Design: plain ``threading.Thread`` workers + one locked state object; the Qt
-main thread POLLS this state on timers. No cross-thread Qt signals, so the
+Design: plain ``threading.Thread`` workers around one locked state object; the
+Qt main thread POLLS this state on timers. No cross-thread Qt signals, so the
 workers stay Qt-free and testable headlessly (--selftest).
 
-Everything the UI renders comes from here:
-  * ``frame_bgr``          - newest camera frame (always current, spec §7);
-  * ``motion/screen``      - per-frame cheap measurements;
-  * ``cellpose_state``     - LOADING_MODEL / IDLE / PROCESSING (+ field id, age);
-  * ``result``             - newest AnalysisResult (worker-built overlay layers
-                             included), staleness evaluated at display time;
-  * ``history``            - (position -> score/class) scan history for the
-                             future slide-map panel (spec: preserve it now).
+Job flow (Phase G2): capture submits jobs to the JobManager (manual queue +
+latest-frame auto slot); workers publish results here:
+  * ``result``      - newest fresh AUTO result (drives live overlay + banner);
+  * ``last_manual`` - newest completed MANUAL/FORCED job (job panel only -
+    manual results belong to their snapshot, never the live view, spec §15);
+  * ``history``     - (position -> score/class) scan history for the future
+    slide-map panel. Only fresh AUTO results feed the temporal smoother (§28).
 """
 
 from __future__ import annotations
@@ -23,42 +22,11 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from src.live.controller import FieldRequest
+from src.live.jobs import AnalysisJob, JobManager
 
 CELLPOSE_LOADING = "LOADING_MODEL"
 CELLPOSE_IDLE = "IDLE"
 CELLPOSE_PROCESSING = "PROCESSING"
-
-
-@dataclass
-class AnalysisResult:
-    """One finished detailed field analysis (spec §15: full freshness record)."""
-
-    field: FieldRequest
-    labels: np.ndarray                      # native-resolution int32 labels
-    rows: List[Dict]                        # measured instances with flags
-    features: Dict
-    score: float
-    score_components: Dict
-    raw_class: str
-    smoothed_score: Optional[float]
-    smoothed_class: Optional[str]
-    stale: bool                             # computed at completion time
-    stale_reason: str
-    cellpose_ms: float
-    features_ms: float
-    latency_ms: float
-    t_start: float
-    t_end: float
-    feature_mode: str
-    merge_analysis_ran: bool
-    first_inference: bool
-    overlay_layer: Optional[np.ndarray] = None   # BGR, black background
-    id_layer: Optional[np.ndarray] = None        # BGR, instance IDs (debug)
-
-    @property
-    def result_age_sec(self) -> float:
-        return time.perf_counter() - self.field.t_capture
 
 
 @dataclass
@@ -84,14 +52,18 @@ class SharedState:
     screen_result: str = ""
     screen_occupancy: float = 0.0
 
-    # controller / worker coordination
+    # controller / job requests
     controller_ref: Optional[object] = None      # LiveFieldController
-    force_request: bool = False
-    analysis_enabled: bool = True
+    jobmgr: Optional[JobManager] = None          # analysis job registry (Phase G2)
+    force_request: bool = False                  # hotkey A -> FORCED job
+    manual_requests: int = 0                     # CAPTURE & ANALYZE -> MANUAL jobs
+    auto_analysis_enabled: bool = True           # Auto Analyze ON/OFF toggle (§3)
+    snapshot_requests: int = 0                   # SAVE SNAPSHOT (no Cellpose)
+    analysis_enabled: bool = True                # SPACE master pause (auto only)
     pending_superseded: int = 0
     requested_fields: int = 0
 
-    # analysis worker
+    # analysis worker pool
     cellpose_state: str = CELLPOSE_LOADING
     cellpose_field_idx: int = -1
     cellpose_started_t: float = 0.0
@@ -101,57 +73,49 @@ class SharedState:
     feature_mode: str = "live"                   # live | detailed (hotkey L)
     merge_analysis_live: bool = False
 
-    # newest finished result (None until the first analysis completes)
-    result: Optional[AnalysisResult] = None
+    # newest fresh AUTO result (live overlay + banner); manual results live in
+    # the JobManager registry and `last_manual`, never on the live view (§15)
+    result: Optional[AnalysisJob] = None
+    last_manual: Optional[AnalysisJob] = None
 
     # UI-side toggles
     outlines_on: bool = True
     debug_ids: bool = False
     recording: bool = False
+    view_job_id: Optional[int] = None            # selected completed job (job viewer)
 
     # scan history: dicts(t, frame_idx, cum_x, cum_y, score, raw_class, stale)
     history: List[Dict] = field(default_factory=list)
 
     # session bookkeeping
     session_dir: Optional[str] = None
+    session_settings: Dict = field(default_factory=dict)
+    source_label: str = "source"
     last_error: str = ""
-    _pending: Optional[FieldRequest] = field(default=None, repr=False)
 
     # ------------------------------------------------------------------
-    def submit_field(self, req: FieldRequest) -> None:
-        """Latest-frame slot: a new request REPLACES any pending older one."""
+    def publish_auto_result(self, job: AnalysisJob) -> None:
         with self.lock:
-            if self._pending is not None:
-                self.pending_superseded += 1
-            self._pending = req
-            self.requested_fields += 1
-
-    def take_pending_field(self, timeout: float = 0.5) -> Optional[FieldRequest]:
-        """Worker side: block briefly for the newest pending field.
-
-        A pending field is returned even when quit was requested - shutdown
-        must not silently drop a field the worker can still analyse.
-        """
-        deadline = time.perf_counter() + timeout
-        while time.perf_counter() < deadline:
-            with self.lock:
-                if self._pending is not None:
-                    req, self._pending = self._pending, None
-                    return req
-            if self.quit_event.is_set():
-                return None
-            self.quit_event.wait(0.05)
-        return None
-
-    def has_pending(self) -> bool:
-        with self.lock:
-            return self._pending is not None
-
-    def publish_result(self, result: AnalysisResult, history_entry: Dict) -> None:
-        with self.lock:
-            self.result = result
+            self.result = job
             self.analysis_count += 1
-            self.history.append(history_entry)
+            self.history.append({
+                "t": job.t_capture, "frame_idx": job.frame_idx,
+                "cum_x": job.cumulative_x, "cum_y": job.cumulative_y,
+                "score": round(job.score, 4) if job.score is not None else None,
+                "raw_class": job.raw_class, "stale": job.stale,
+            })
+
+    def publish_manual_result(self, job: AnalysisJob) -> None:
+        with self.lock:
+            self.last_manual = job
+            self.analysis_count += 1
+            self.history.append({
+                "t": job.t_capture, "frame_idx": job.frame_idx,
+                "cum_x": job.cumulative_x, "cum_y": job.cumulative_y,
+                "score": round(job.score, 4) if job.score is not None else None,
+                "raw_class": job.raw_class, "stale": False,
+                "manual": True, "job_id": job.job_id,
+            })
 
     def snapshot_display(self) -> Dict:
         """Atomic-ish read of everything the UI needs per tick."""
@@ -169,12 +133,14 @@ class SharedState:
                 "cellpose_field_idx": self.cellpose_field_idx,
                 "cellpose_started_t": self.cellpose_started_t,
                 "result": self.result,
+                "last_manual": self.last_manual,
                 "outlines_on": self.outlines_on,
                 "debug_ids": self.debug_ids,
                 "analysis_enabled": self.analysis_enabled,
+                "auto_analysis_enabled": self.auto_analysis_enabled,
                 "feature_mode": self.feature_mode,
                 "analysis_count": self.analysis_count,
-                "pending_superseded": self.pending_superseded,
+                "view_job_id": self.view_job_id,
                 "source_error": self.source_error,
             }
 
