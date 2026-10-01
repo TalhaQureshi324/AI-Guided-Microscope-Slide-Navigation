@@ -21,6 +21,7 @@ models/
 # statistics live in results.csv / video_summary.json alongside them.
 Dataset/*.mp4
 outputs/*/annotated_video.mp4
+outputs/*/recorded.mp4
 
 # Jupyter
 .ipynb_checkpoints/
