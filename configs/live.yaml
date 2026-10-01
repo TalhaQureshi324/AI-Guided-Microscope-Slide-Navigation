@@ -1,0 +1,116 @@
+# Live-camera perception configuration (spec sections 4, 10-13, 18-21, 42).
+# Every experimental value is a PROTOTYPE threshold, not a medical constant.
+
+# ---- source -----------------------------------------------------------------
+source: camera:0            # camera:<idx|url>[?backend=msmf|dshow] | video:<path> | image:<path>
+# NATIVE-FIRST (0 = do not force): open the camera in its default mode.
+# Forcing an unsupported mode (e.g. 1920x1080 on an 800x448 sensor) yields a
+# dead 0x0 device. This microscope's verified modes (list_cameras
+# --probe-resolutions 0:dshow): native 800x448 and 1280x720 both stream;
+# 1920x1080 does NOT. Set explicit values only after probing.
+camera_width: 0
+camera_height: 0
+camera_fps: 0.0             # 0 = do not force (device-reported fps may be 0 - legal)
+camera_backend: auto        # auto | msmf | dshow  (auto = first backend that streams)
+capture_buffer_size: 1      # latest-frame bias: keep OpenCV's queue tiny
+video_realtime: true        # video replay at native pace (regression mode)
+video_loop: false
+
+# ---- live field controller (motion states, spec sections 8-11) --------------
+moving_disp_thresh_px: 8.0  # per-frame displacement that counts as MOVING
+stationary_frames: 6        # consecutive still frames before STATIONARY
+settle_frames: 4            # extra frames after stop before a field is captured
+motion_threshold_px: 240     # accumulated displacement for a NEW_FIELD,
+                             # calibrated at 1920 px width (~8 RBC diameters,
+                             # cells ~30 px). AUTO-SCALED to the actual camera
+                             # width at runtime, so USB cameras that grant
+                             # 800x448 or other modes keep the same physical
+                             # meaning (~8 cell diameters).
+min_interval_sec: 1.0       # safety rate limit (movement is the primary trigger)
+heartbeat_sec: 20.0         # re-analyze a long-stationary field occasionally
+blur_guard: 5.0             # gross motion-blur gate (native-equivalent Lap var)
+
+# ---- fast screening (spec §12) ----------------------------------------------
+fast_screen_work_width: 480
+thick_occupancy_min: 0.62
+thin_occupancy_max: 0.25
+thick_edge_density_min: 0.35
+thin_edge_density_max: 0.08
+
+# ---- Cellpose worker (spec sections 13-14, 31) -------------------------------
+model_name: cpsam_v2
+gpu: auto
+use_bfloat16: false         # GTX 1080 Ti has no native bfloat16
+cellprob_threshold: 0.0
+flow_threshold: 0.4
+min_size: 15
+diameter: null
+normalize: true
+# null = native resolution. 1280 or 960 = reduced-resolution inference
+# (spec §31 benchmark). Density is computed on native-upscaled masks so the
+# prototype count gate stays comparable.
+cellpose_width: null
+cellpose_mode: benchmark    # benchmark = every accepted field | hybrid = only screen-UNCERTAIN
+
+# ---- feature modes (spec sections 29-30) -------------------------------------
+feature_mode: live          # live | detailed  (hotkey L toggles at runtime)
+merge_analysis_live: false  # false: DT merge diagnostics only in detailed mode
+                            # (classification/score do NOT use merge flags -
+                            # measured identical decisions; see benchmark)
+
+# ---- field features / decision (identical to the video prototype) ------------
+valid_roi_margin: 0.10
+contact_margin_fraction: 0.15
+neighbor_distance_threshold: 1.5
+large_cluster_min_cells: 30
+uniformity_grid: 4
+small_area_factor: 0.35
+wbc_area_factor: 3.5
+merge_area_factor_min: 1.6
+merge_solidity_max: 0.90
+merge_elongation_min: 1.5
+merge_min_signals: 2
+
+monolayer_score_cfg:
+  density_lo: 450.0
+  density_hi: 560.0
+  density_wing: 150.0
+  coverage_lo: 0.33
+  coverage_hi: 0.42
+  coverage_wing: 0.12
+  spacing_lo: 0.95
+  spacing_hi: 1.10
+  spacing_wing: 0.30
+  uniformity_cv_ref: 0.25
+  weights:
+    comp_density: 0.25
+    comp_coverage: 0.20
+    comp_spacing: 0.20
+    comp_low_crowding: 0.15
+    comp_low_clustering: 0.10
+    comp_uniformity: 0.10
+
+classification_cfg:
+  prototype_count_min: 950    # prototype_count_gate - NOT validated (spec §18)
+  prototype_count_max: 1050
+  min_signals: 2
+  thick_coverage_min: 0.45
+  thick_degree_min: 1.8
+  thick_cluster_frac_min: 0.75
+  thin_coverage_max: 0.25
+  thin_nn_norm_min: 1.35
+  monolayer_score_min: 0.60
+
+temporal_alpha: 0.4
+temporal_window: 5
+monolayer_score_min: 0.60
+
+# ---- result freshness (spec §15-16) -------------------------------------------
+result_stale_displacement: 160.0   # px of movement that voids a result
+result_stale_seconds: 25.0
+
+# ---- session outputs (spec §36) ------------------------------------------------
+outputs_root: outputs
+save_keyframes: true
+save_overlays: true
+save_masks: false            # heavy; enable for dataset collection
