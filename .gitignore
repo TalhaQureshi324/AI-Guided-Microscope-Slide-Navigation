@@ -16,7 +16,11 @@ dist/
 models/
 
 # Experiment outputs are tracked deliberately (results serve as the FYP
-# evidence record); large regenerable intermediates would be listed here.
+# evidence record). Exceptions: the source microscope video (514 MB) and the
+# annotated result video (~285 MB) exceed GitHub's 100 MB limit - their
+# statistics live in results.csv / video_summary.json alongside them.
+Dataset/*.mp4
+outputs/*/annotated_video.mp4
 
 # Jupyter
 .ipynb_checkpoints/
