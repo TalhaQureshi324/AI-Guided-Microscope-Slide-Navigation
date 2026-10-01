@@ -220,6 +220,36 @@ visualization, utils, video, live, ui, capture), `scripts/`, `configs/`,
 
 ---
 
+## 7.5 Manual capture workflow & concurrent job manager (Phase G, 2026-10-01)
+
+**Why:** auto-analysis wastes GPU time on fields the operator doesn't care
+about during manual calibration work. Manual capture became a first-class
+workflow without removing auto mode (both feed the same job system).
+
+**What was built:** CAPTURE & ANALYZE button (instant frame copy + enqueue;
+the camera never freezes), Auto Analyze ON/OFF toggle, SAVE SNAPSHOT (no
+Cellpose), an ANALYSIS JOBS panel (queued/processing/completed with class,
+score, human label), a job viewer (click a completed job -> its own captured
+snapshot with overlays; results NEVER drawn over the changed live view),
+thicker ORANGE merge-suspect contours + orange centroid markers, and per-job
+human labels (M/T/N/U on the selected job; `human_label` stored separately
+from `predicted_class`).
+
+**Architecture:** explicit `AnalysisJob`s in a `JobManager` (MANUAL > FORCED >
+AUTO priority; manual jobs never superseded, auto keeps latest-frame policy;
+queue bounded at 20 with loud refusal), processed by a two-stage pipeline:
+N GPU Cellpose workers (one resident model each) -> bounded mask queue ->
+M CPU feature workers (features/merge/score overlap inference). MANUAL/FORCED
+jobs always get detailed analysis incl. DT merge suspects; AUTO stays on the
+fast live path. Manual results never touch the temporal smoother or the
+live-field state. CUDA OOM is caught per job (FAILED + message, session safe).
+
+**Worker benchmark (4 fields @960px, GTX 1080 Ti):** 1 GPU worker: first
+result 11.4 s, total 20.4 s, 3.1 GB; 2 workers: total 19.1 s (best), 6.3 GB;
+3 workers: 23.3 s; 4 workers: 29.7 s, 12.0 GB (worse - compute contention).
+**Recommendation: 1 GPU worker + 2 CPU feature workers** (shipped default);
+more GPU workers cost VRAM and latency for no real throughput gain.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration
