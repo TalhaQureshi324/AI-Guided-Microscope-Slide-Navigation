@@ -1,0 +1,352 @@
+{
+  "fields": 12,
+  "per_keyframe": [
+    {
+      "keyframe": "keyframe_0065_f005021",
+      "native": {
+        "inf_ms": 14555.0,
+        "instances": 561,
+        "rbc": 556,
+        "coverage": 0.297,
+        "score": 0.459,
+        "class": "UNCERTAIN"
+      },
+      "1280": {
+        "inf_ms": 5136.0,
+        "instances": 705,
+        "rbc": 695,
+        "coverage": 0.352,
+        "score": 0.627,
+        "class": "UNCERTAIN"
+      },
+      "960": {
+        "inf_ms": 2636.0,
+        "instances": 684,
+        "rbc": 676,
+        "coverage": 0.334,
+        "score": 0.588,
+        "class": "UNCERTAIN"
+      }
+    },
+    {
+      "keyframe": "keyframe_0066_f005093",
+      "native": {
+        "inf_ms": 10841.0,
+        "instances": 794,
+        "rbc": 789,
+        "coverage": 0.367,
+        "score": 0.742,
+        "class": "UNCERTAIN"
+      },
+      "1280": {
+        "inf_ms": 5071.0,
+        "instances": 830,
+        "rbc": 821,
+        "coverage": 0.365,
+        "score": 0.715,
+        "class": "UNCERTAIN"
+      },
+      "960": {
+        "inf_ms": 2644.0,
+        "instances": 834,
+        "rbc": 827,
+        "coverage": 0.357,
+        "score": 0.717,
+        "class": "UNCERTAIN"
+      }
+    },
+    {
+      "keyframe": "keyframe_0067_f005165",
+      "native": {
+        "inf_ms": 10731.0,
+        "instances": 517,
+        "rbc": 515,
+        "coverage": 0.27,
+        "score": 0.388,
+        "class": "UNCERTAIN"
+      },
+      "1280": {
+        "inf_ms": 5036.0,
+        "instances": 633,
+        "rbc": 627,
+        "coverage": 0.298,
+        "score": 0.491,
+        "class": "UNCERTAIN"
+      },
+      "960": {
+        "inf_ms": 2637.0,
+        "instances": 687,
+        "rbc": 680,
+        "coverage": 0.294,
+        "score": 0.497,
+        "class": "UNCERTAIN"
+      }
+    },
+    {
+      "keyframe": "keyframe_0068_f005237",
+      "native": {
+        "inf_ms": 10683.0,
+        "instances": 466,
+        "rbc": 465,
+        "coverage": 0.229,
+        "score": 0.343,
+        "class": "TOO_THIN"
+      },
+      "1280": {
+        "inf_ms": 5007.0,
+        "instances": 555,
+        "rbc": 553,
+        "coverage": 0.255,
+        "score": 0.375,
+        "class": "UNCERTAIN"
+      },
+      "960": {
+        "inf_ms": 2614.0,
+        "instances": 574,
+        "rbc": 570,
+        "coverage": 0.267,
+        "score": 0.394,
+        "class": "UNCERTAIN"
+      }
+    },
+    {
+      "keyframe": "keyframe_0069_f005309",
+      "native": {
+        "inf_ms": 10779.0,
+        "instances": 609,
+        "rbc": 605,
+        "coverage": 0.253,
+        "score": 0.38,
+        "class": "UNCERTAIN"
+      },
+      "1280": {
+        "inf_ms": 5062.0,
+        "instances": 789,
+        "rbc": 784,
+        "coverage": 0.319,
+        "score": 0.629,
+        "class": "UNCERTAIN"
+      },
+      "960": {
+        "inf_ms": 2638.0,
+        "instances": 805,
+        "rbc": 801,
+        "coverage": 0.318,
+        "score": 0.625,
+        "class": "UNCERTAIN"
+      }
+    },
+    {
+      "keyframe": "keyframe_0070_f005731",
+      "native": {
+        "inf_ms": 11389.0,
+        "instances": 917,
+        "rbc": 913,
+        "coverage": 0.371,
+        "score": 0.771,
+        "class": "UNCERTAIN"
+      },
+      "1280": {
+        "inf_ms": 5075.0,
+        "instances": 964,
+        "rbc": 959,
+        "coverage": 0.374,
+        "score": 0.798,
+        "class": "MONOLAYER"
+      },
+      "960": {
+        "inf_ms": 2644.0,
+        "instances": 931,
+        "rbc": 927,
+        "coverage": 0.36,
+        "score": 0.733,
+        "class": "UNCERTAIN"
+      }
+    },
+    {
+      "keyframe": "keyframe_0071_f005803",
+      "native": {
+        "inf_ms": 10953.0,
+        "instances": 1019,
+        "rbc": 1006,
+        "coverage": 0.351,
+        "score": 0.776,
+        "class": "TOO_THICK"
+      },
+      "1280": {
+        "inf_ms": 5070.0,
+        "instances": 1029,
+        "rbc": 1018,
+        "coverage": 0.348,
+        "score": 0.779,
+        "class": "MONOLAYER"
+      },
+      "960": {
+        "inf_ms": 2656.0,
+        "instances": 1034,
+        "rbc": 1017,
+        "coverage": 0.354,
+        "score": 0.774,
+        "class": "TOO_THICK"
+      }
+    },
+    {
+      "keyframe": "keyframe_0072_f006111",
+      "native": {
+        "inf_ms": 10827.0,
+        "instances": 923,
+        "rbc": 911,
+        "coverage": 0.309,
+        "score": 0.705,
+        "class": "UNCERTAIN"
+      },
+      "1280": {
+        "inf_ms": 5033.0,
+        "instances": 804,
+        "rbc": 795,
+        "coverage": 0.276,
+        "score": 0.583,
+        "class": "UNCERTAIN"
+      },
+      "960": {
+        "inf_ms": 2629.0,
+        "instances": 856,
+        "rbc": 845,
+        "coverage": 0.291,
+        "score": 0.623,
+        "class": "UNCERTAIN"
+      }
+    },
+    {
+      "keyframe": "keyframe_0073_f006183",
+      "native": {
+        "inf_ms": 10805.0,
+        "instances": 915,
+        "rbc": 905,
+        "coverage": 0.345,
+        "score": 0.82,
+        "class": "UNCERTAIN"
+      },
+      "1280": {
+        "inf_ms": 5032.0,
+        "instances": 828,
+        "rbc": 819,
+        "coverage": 0.311,
+        "score": 0.728,
+        "class": "UNCERTAIN"
+      },
+      "960": {
+        "inf_ms": 2648.0,
+        "instances": 993,
+        "rbc": 981,
+        "coverage": 0.365,
+        "score": 0.811,
+        "class": "MONOLAYER"
+      }
+    },
+    {
+      "keyframe": "keyframe_0074_f006255",
+      "native": {
+        "inf_ms": 10802.0,
+        "instances": 764,
+        "rbc": 756,
+        "coverage": 0.291,
+        "score": 0.633,
+        "class": "UNCERTAIN"
+      },
+      "1280": {
+        "inf_ms": 5043.0,
+        "instances": 739,
+        "rbc": 729,
+        "coverage": 0.273,
+        "score": 0.559,
+        "class": "UNCERTAIN"
+      },
+      "960": {
+        "inf_ms": 2630.0,
+        "instances": 756,
+        "rbc": 746,
+        "coverage": 0.28,
+        "score": 0.541,
+        "class": "UNCERTAIN"
+      }
+    },
+    {
+      "keyframe": "keyframe_0075_f006327",
+      "native": {
+        "inf_ms": 11126.0,
+        "instances": 817,
+        "rbc": 807,
+        "coverage": 0.316,
+        "score": 0.612,
+        "class": "UNCERTAIN"
+      },
+      "1280": {
+        "inf_ms": 5049.0,
+        "instances": 819,
+        "rbc": 807,
+        "coverage": 0.319,
+        "score": 0.617,
+        "class": "UNCERTAIN"
+      },
+      "960": {
+        "inf_ms": 2647.0,
+        "instances": 823,
+        "rbc": 811,
+        "coverage": 0.351,
+        "score": 0.582,
+        "class": "TOO_THICK"
+      }
+    },
+    {
+      "keyframe": "keyframe_0076_f006402",
+      "native": {
+        "inf_ms": 10731.0,
+        "instances": 682,
+        "rbc": 678,
+        "coverage": 0.305,
+        "score": 0.507,
+        "class": "TOO_THICK"
+      },
+      "1280": {
+        "inf_ms": 5017.0,
+        "instances": 702,
+        "rbc": 697,
+        "coverage": 0.309,
+        "score": 0.525,
+        "class": "TOO_THICK"
+      },
+      "960": {
+        "inf_ms": 2625.0,
+        "instances": 735,
+        "rbc": 725,
+        "coverage": 0.321,
+        "score": 0.554,
+        "class": "TOO_THICK"
+      }
+    }
+  ],
+  "aggregate": {
+    "native": {
+      "inf_ms_mean": 11185.0,
+      "rbc_mean": 742.2,
+      "rbc_mean_abs_delta_vs_native": 0.0,
+      "class_agreement_with_native": "12/12",
+      "score_mean": 0.595
+    },
+    "1280": {
+      "inf_ms_mean": 5053.0,
+      "rbc_mean": 775.3,
+      "rbc_mean_abs_delta_vs_native": 71.3,
+      "class_agreement_with_native": "9/12",
+      "score_mean": 0.619
+    },
+    "960": {
+      "inf_ms_mean": 2637.0,
+      "rbc_mean": 800.5,
+      "rbc_mean_abs_delta_vs_native": 71,
+      "class_agreement_with_native": "9/12",
+      "score_mean": 0.62
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "fields": 78,
+  "live_mode_ms_mean": 565.2,
+  "live_mode_ms_median": 137.4,
+  "live_mode_ms_max": 3551.8,
+  "detailed_mode_ms_mean": 5902.3,
+  "detailed_mode_ms_median": 3416.3,
+  "detailed_mode_ms_max": 25010.2,
+  "merge_dt_overhead_ms_mean": 5337.1,
+  "decision_mismatches": 0,
+  "mismatch_examples": []
+}
