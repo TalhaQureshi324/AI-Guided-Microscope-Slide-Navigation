@@ -1,0 +1,21 @@
+{
+  "session": "live_selftest_full",
+  "elapsed_sec": 208.7,
+  "source": {
+    "path": "Dataset/video_dataset.mp4",
+    "fps_avg": 35.769,
+    "mode": "replay"
+  },
+  "frames_captured": 7037,
+  "capture_fps_avg": 35.75,
+  "fields_requested": 18,
+  "pending_superseded": 4,
+  "fields_analyzed": 14,
+  "cellpose_busy_sec": 159.5,
+  "cellpose_busy_fraction": 0.764,
+  "last_latency_ms": 10509.3,
+  "last_cellpose_ms": 10410.0,
+  "last_features_ms": 91.1,
+  "monolayer_history": [],
+  "stale_results": 14
+}

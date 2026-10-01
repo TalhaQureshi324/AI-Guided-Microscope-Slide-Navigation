@@ -1,0 +1,29 @@
+{
+  "session": "live_session_20260930_172136",
+  "elapsed_sec": 192682.5,
+  "source": {
+    "requested": {
+      "width": 0,
+      "height": 0,
+      "fps": 0.0
+    },
+    "actual": {
+      "width": 800,
+      "height": 448,
+      "fps": 0.0,
+      "backend": "dshow"
+    }
+  },
+  "frames_captured": 8137,
+  "capture_fps_avg": 48.35,
+  "fields_requested": 18,
+  "pending_superseded": 4,
+  "fields_analyzed": 14,
+  "cellpose_busy_sec": 65.9,
+  "cellpose_busy_fraction": 0.0,
+  "last_latency_ms": 5714.7,
+  "last_cellpose_ms": 2953.5,
+  "last_features_ms": 2755.1,
+  "monolayer_history": [],
+  "stale_results": 4
+}

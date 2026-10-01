@@ -1,0 +1,48 @@
+{
+  "session": "live_banner_lossless2",
+  "elapsed_sec": 60.1,
+  "source": {
+    "path": "outputs/benchmarks/parked_frame.png",
+    "mode": "still"
+  },
+  "frames_captured": 117,
+  "capture_fps_avg": 1.94,
+  "fields_requested": 3,
+  "pending_superseded": 0,
+  "fields_analyzed": 3,
+  "cellpose_busy_sec": 39.0,
+  "cellpose_busy_fraction": 0.649,
+  "last_latency_ms": 12855.4,
+  "last_cellpose_ms": 10812.1,
+  "last_features_ms": 2017.7,
+  "monolayer_history": [
+    {
+      "t": 164097.7228347,
+      "frame_idx": 10,
+      "cum_x": 3.069544618483633e-12,
+      "cum_y": 2.0463630789890885e-12,
+      "score": 0.821,
+      "raw_class": "MONOLAYER",
+      "stale": false
+    },
+    {
+      "t": 164117.8208209,
+      "frame_idx": 49,
+      "cum_x": 1.6370904631912708e-11,
+      "cum_y": 1.0913936421275139e-11,
+      "score": 0.821,
+      "raw_class": "MONOLAYER",
+      "stale": false
+    },
+    {
+      "t": 164138.0159039,
+      "frame_idx": 88,
+      "cum_x": 2.9672264645341784e-11,
+      "cum_y": 1.978150976356119e-11,
+      "score": 0.821,
+      "raw_class": "MONOLAYER",
+      "stale": false
+    }
+  ],
+  "stale_results": 0
+}

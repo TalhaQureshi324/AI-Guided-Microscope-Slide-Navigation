@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-09-30T16:44:39",
+  "git_commit": "ad5eeaa",
+  "platform": "Windows-11-10.0.26100-SP0",
+  "processor": "Intel64 Family 6 Model 158 Stepping 9, GenuineIntel",
+  "python": "3.12.7",
+  "python_executable": "C:\\Users\\assad\\Miniforge3n\\envs\\cellpose_env\\python.exe",
+  "torch": "2.5.1+cu121",
+  "cuda_available": true,
+  "cuda_version": "12.1",
+  "cudnn_version": 90100,
+  "device": "CUDA - NVIDIA GeForce GTX 1080 Ti",
+  "cellpose_version": "4.2.1.1",
+  "session": "live_session_20260930_164439",
+  "source": "camera:0",
+  "source_settings": {},
+  "cellpose_model": "cpsam_v2",
+  "cellpose_width": null,
+  "cellpose_mode": "benchmark",
+  "feature_mode_default": "live",
+  "prototype_count_gate": [
+    950,
+    1050
+  ],
+  "note": "all thresholds experimental/prototype; see configs/live.yaml"
+}

@@ -1,0 +1,34 @@
+2026-09-30 16:44:42,849 INFO    live.analysis: loading Cellpose model 'cpsam_v2' ...
+2026-09-30 16:44:44,132 INFO    live.capture: source opened: camera:0 | {'requested': {'width': 0, 'height': 0, 'fps': 0.0}, 'actual': {'width': 800, 'height': 448, 'fps': 0.0, 'backend': 'dshow'}}
+2026-09-30 16:44:44,173 INFO    live.capture: motion threshold auto-scaled: 100 px at width 800
+2026-09-30 16:44:44,389 DEBUG   live.capture: field requested #1 f10 (FIRST_FIELD)
+2026-09-30 16:44:45,006 WARNING cellpose.vit: Could not import CPDINO, run `pip install git+https://github.com/facebookresearch/dinov3` to use CPDINO model
+2026-09-30 16:44:45,010 INFO    src.segmentation.cellpose_segmenter: Loading Cellpose model 'cpsam_v2' (device: CUDA - NVIDIA GeForce GTX 1080 Ti)...
+2026-09-30 16:44:45,115 INFO    cellpose.core: ** TORCH CUDA version installed and working. **
+2026-09-30 16:44:45,115 INFO    cellpose.core: >>>> using GPU (CUDA)
+2026-09-30 16:44:47,455 INFO    cellpose.models: >>>> loading model C:\Users\assad\.cellpose\models\cpsam_v2
+2026-09-30 16:44:48,509 INFO    src.segmentation.cellpose_segmenter: Model loaded in 3.5 s
+2026-09-30 16:44:48,519 INFO    live.analysis: model ready on CUDA - NVIDIA GeForce GTX 1080 Ti (3.5s)
+2026-09-30 16:44:53,031 INFO    live.analysis: field f10 FIRST_FIELD | UNCERTAIN score 0.49 smooth 0.49 | RBC 730 cov 0.30 | cellpose 2780ms feat 1726ms | stale=False
+2026-09-30 16:44:53,540 DEBUG   live.capture: field requested #2 f427 (NEW_FIELD)
+2026-09-30 16:44:57,063 DEBUG   live.capture: field requested #3 f592 (NEW_FIELD)
+2026-09-30 16:44:57,311 INFO    live.analysis: field f427 NEW_FIELD | UNCERTAIN score 0.39 smooth n/a | RBC 648 cov 0.29 | cellpose 2345ms feat 1414ms | stale=True
+2026-09-30 16:44:58,085 DEBUG   live.capture: field requested #4 f640 (NEW_FIELD)
+2026-09-30 16:45:01,352 DEBUG   live.capture: field requested #5 f792 (NEW_FIELD)
+2026-09-30 16:45:01,861 INFO    live.analysis: field f592 NEW_FIELD | UNCERTAIN score 0.51 smooth n/a | RBC 900 cov 0.38 | cellpose 2300ms feat 2234ms | stale=True
+2026-09-30 16:45:06,142 INFO    live.analysis: field f792 NEW_FIELD | UNCERTAIN score 0.40 smooth 0.45 | RBC 866 cov 0.26 | cellpose 2298ms feat 1952ms | stale=False
+2026-09-30 16:45:12,228 DEBUG   live.capture: field requested #6 f1303 (NEW_FIELD)
+2026-09-30 16:45:14,631 DEBUG   live.capture: field requested #7 f1416 (NEW_FIELD)
+2026-09-30 16:45:15,864 INFO    live.analysis: field f1303 NEW_FIELD | TOO_THIN  score 0.30 smooth n/a | RBC 621 cov 0.19 | cellpose 2264ms feat 1364ms | stale=True
+2026-09-30 16:45:20,344 INFO    live.analysis: field f1416 NEW_FIELD | UNCERTAIN score 0.54 smooth 0.49 | RBC 951 cov 0.32 | cellpose 2309ms feat 2156ms | stale=False
+2026-09-30 16:45:30,259 DEBUG   live.capture: field requested #8 f2152 (NEW_FIELD)
+2026-09-30 16:45:31,877 DEBUG   live.capture: field requested #9 f2228 (NEW_FIELD)
+2026-09-30 16:45:33,144 DEBUG   live.capture: field requested #10 f2286 (NEW_FIELD)
+2026-09-30 16:45:34,329 INFO    live.analysis: field f2152 NEW_FIELD | UNCERTAIN score 0.48 smooth n/a | RBC 867 cov 0.28 | cellpose 2284ms feat 1766ms | stale=True
+2026-09-30 16:45:38,961 INFO    live.analysis: field f2286 NEW_FIELD | UNCERTAIN score 0.49 smooth 0.49 | RBC 923 cov 0.28 | cellpose 2317ms feat 2300ms | stale=False
+2026-09-30 16:45:44,981 DEBUG   live.capture: field requested #11 f2843 (NEW_FIELD)
+2026-09-30 16:45:49,232 INFO    live.analysis: field f2843 NEW_FIELD | UNCERTAIN score 0.40 smooth 0.45 | RBC 816 cov 0.25 | cellpose 2437ms feat 1804ms | stale=False
+2026-09-30 16:46:04,981 DEBUG   live.capture: field requested #12 f3784 (HEARTBEAT)
+2026-09-30 16:46:08,943 INFO    live.analysis: field f3784 HEARTBEAT | UNCERTAIN score 0.40 smooth 0.43 | RBC 814 cov 0.25 | cellpose 2259ms feat 1681ms | stale=False
+2026-09-30 16:46:12,055 INFO    live.analysis: analysis worker stopped (10 fields, 42.1 s busy)
+2026-09-30 16:46:12,402 INFO    live.capture: capture worker stopped (4093 frames)

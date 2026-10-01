@@ -1,0 +1,17 @@
+2026-09-30 09:28:10,231 INFO    live.analysis: loading Cellpose model 'cpsam_v2' ...
+2026-09-30 09:28:10,272 INFO    live.capture: source opened: image:parked_frame.png | {'path': 'outputs/benchmarks/parked_frame.png', 'mode': 'still'}
+2026-09-30 09:28:12,022 WARNING cellpose.vit: Could not import CPDINO, run `pip install git+https://github.com/facebookresearch/dinov3` to use CPDINO model
+2026-09-30 09:28:12,024 INFO    src.segmentation.cellpose_segmenter: Loading Cellpose model 'cpsam_v2' (device: CUDA - NVIDIA GeForce GTX 1080 Ti)...
+2026-09-30 09:28:13,906 INFO    cellpose.core: ** TORCH CUDA version installed and working. **
+2026-09-30 09:28:13,906 INFO    cellpose.core: >>>> using GPU (CUDA)
+2026-09-30 09:28:15,636 DEBUG   live.capture: field requested #1 f10 (FIRST_FIELD)
+2026-09-30 09:28:16,137 INFO    cellpose.models: >>>> loading model C:\Users\assad\.cellpose\models\cpsam_v2
+2026-09-30 09:28:16,855 INFO    src.segmentation.cellpose_segmenter: Model loaded in 4.8 s
+2026-09-30 09:28:16,855 INFO    live.analysis: model ready on CUDA - NVIDIA GeForce GTX 1080 Ti (4.8s)
+2026-09-30 09:28:30,070 INFO    live.analysis: field f10 FIRST_FIELD | MONOLAYER score 0.82 smooth 0.82 | RBC 951 cov 0.35 | cellpose 11239ms feat 1949ms | stale=False
+2026-09-30 09:28:35,754 DEBUG   live.capture: field requested #2 f49 (HEARTBEAT)
+2026-09-30 09:28:48,700 INFO    live.analysis: field f49 HEARTBEAT | MONOLAYER score 0.82 smooth 0.82 | RBC 951 cov 0.35 | cellpose 10911ms feat 1997ms | stale=False
+2026-09-30 09:28:55,948 DEBUG   live.capture: field requested #3 f88 (HEARTBEAT)
+2026-09-30 09:29:08,835 INFO    live.analysis: field f88 HEARTBEAT | MONOLAYER score 0.82 smooth 0.82 | RBC 951 cov 0.35 | cellpose 10812ms feat 2018ms | stale=False
+2026-09-30 09:29:10,280 INFO    live.analysis: analysis worker stopped (3 fields, 39.0 s busy)
+2026-09-30 09:29:10,286 INFO    live.capture: capture worker stopped (116 frames)

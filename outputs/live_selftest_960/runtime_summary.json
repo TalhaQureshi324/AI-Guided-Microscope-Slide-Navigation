@@ -1,0 +1,31 @@
+{
+  "session": "live_selftest_960",
+  "elapsed_sec": 197.7,
+  "source": {
+    "path": "Dataset/video_dataset.mp4",
+    "fps_avg": 35.769,
+    "mode": "replay"
+  },
+  "frames_captured": 7037,
+  "capture_fps_avg": 35.75,
+  "fields_requested": 18,
+  "pending_superseded": 1,
+  "fields_analyzed": 17,
+  "cellpose_busy_sec": 56.0,
+  "cellpose_busy_fraction": 0.283,
+  "last_latency_ms": 2451.7,
+  "last_cellpose_ms": 2437.2,
+  "last_features_ms": 14.0,
+  "monolayer_history": [
+    {
+      "t": 162.42897100625353,
+      "frame_idx": 5811,
+      "cum_x": -118471.5214643335,
+      "cum_y": 2685.4332705584175,
+      "score": 0.7745,
+      "raw_class": "MONOLAYER",
+      "stale": true
+    }
+  ],
+  "stale_results": 17
+}

@@ -1,0 +1,44 @@
+2026-09-29 17:37:01,144 INFO    live.analysis: loading Cellpose model 'cpsam_v2' ...
+2026-09-29 17:37:01,241 INFO    live.capture: source opened: video:video_dataset.mp4 | {'path': 'Dataset/video_dataset.mp4', 'fps_avg': 35.769, 'mode': 'replay'}
+2026-09-29 17:37:01,549 DEBUG   live.capture: field requested #1 f10 (HEARTBEAT)
+2026-09-29 17:37:03,030 WARNING cellpose.vit: Could not import CPDINO, run `pip install git+https://github.com/facebookresearch/dinov3` to use CPDINO model
+2026-09-29 17:37:03,032 INFO    src.segmentation.cellpose_segmenter: Loading Cellpose model 'cpsam_v2' (device: CUDA - NVIDIA GeForce GTX 1080 Ti)...
+2026-09-29 17:37:03,219 INFO    cellpose.core: ** TORCH CUDA version installed and working. **
+2026-09-29 17:37:03,219 INFO    cellpose.core: >>>> using GPU (CUDA)
+2026-09-29 17:37:05,373 INFO    cellpose.models: >>>> loading model C:\Users\assad\.cellpose\models\cpsam_v2
+2026-09-29 17:37:06,185 INFO    src.segmentation.cellpose_segmenter: Model loaded in 3.2 s
+2026-09-29 17:37:06,185 INFO    live.analysis: model ready on CUDA - NVIDIA GeForce GTX 1080 Ti (3.2s)
+2026-09-29 17:37:10,727 DEBUG   live.capture: field requested #2 f340 (NEW_FIELD)
+2026-09-29 17:37:17,513 INFO    live.analysis: field f10 HEARTBEAT | TOO_THIN  score 0.24 smooth n/a | RBC 32 cov 0.08 | cellpose 11143ms feat 174ms | stale=True
+2026-09-29 17:37:26,131 DEBUG   live.capture: field requested #3 f891 (NEW_FIELD)
+2026-09-29 17:37:28,318 INFO    live.analysis: field f340 NEW_FIELD | TOO_THIN  score 0.23 smooth n/a | RBC 12 cov 0.03 | cellpose 10697ms feat 66ms | stale=True
+2026-09-29 17:37:34,938 DEBUG   live.capture: field requested #4 f1206 (NEW_FIELD)
+2026-09-29 17:37:39,167 INFO    live.analysis: field f891 NEW_FIELD | TOO_THIN  score 0.25 smooth n/a | RBC 16 cov 0.04 | cellpose 10706ms feat 107ms | stale=True
+2026-09-29 17:37:50,148 INFO    live.analysis: field f1206 NEW_FIELD | TOO_THIN  score 0.24 smooth n/a | RBC 18 cov 0.08 | cellpose 10817ms feat 123ms | stale=True
+2026-09-29 17:38:01,274 DEBUG   live.capture: field requested #5 f2148 (NEW_FIELD)
+2026-09-29 17:38:12,310 INFO    live.analysis: field f2148 NEW_FIELD | TOO_THIN  score 0.24 smooth n/a | RBC 23 cov 0.05 | cellpose 10865ms feat 111ms | stale=True
+2026-09-29 17:38:20,858 DEBUG   live.capture: field requested #6 f2785 (NEW_FIELD)
+2026-09-29 17:38:27,217 DEBUG   live.capture: field requested #7 f3076 (NEW_FIELD)
+2026-09-29 17:38:31,593 INFO    live.analysis: field f2785 NEW_FIELD | TOO_THIN  score 0.24 smooth n/a | RBC 26 cov 0.04 | cellpose 10581ms feat 120ms | stale=True
+2026-09-29 17:38:42,294 INFO    live.analysis: field f3076 NEW_FIELD | TOO_THIN  score 0.23 smooth n/a | RBC 14 cov 0.02 | cellpose 10598ms feat 64ms | stale=True
+2026-09-29 17:38:51,820 DEBUG   live.capture: field requested #8 f3956 (NEW_FIELD)
+2026-09-29 17:39:02,743 INFO    live.analysis: field f3956 NEW_FIELD | TOO_THIN  score 0.24 smooth n/a | RBC 24 cov 0.02 | cellpose 10768ms feat 84ms | stale=True
+2026-09-29 17:39:14,799 DEBUG   live.capture: field requested #9 f4778 (NEW_FIELD)
+2026-09-29 17:39:26,588 INFO    live.analysis: field f4778 NEW_FIELD | UNCERTAIN score 0.45 smooth n/a | RBC 519 cov 0.28 | cellpose 10646ms feat 1066ms | stale=True
+2026-09-29 17:39:28,906 DEBUG   live.capture: field requested #10 f5070 (NEW_FIELD)
+2026-09-29 17:39:39,982 DEBUG   live.capture: field requested #11 f5321 (NEW_FIELD)
+2026-09-29 17:39:41,902 INFO    live.analysis: field f5070 NEW_FIELD | UNCERTAIN score 0.70 smooth n/a | RBC 751 cov 0.35 | cellpose 10847ms feat 2099ms | stale=True
+2026-09-29 17:39:47,388 DEBUG   live.capture: field requested #12 f5811 (NEW_FIELD)
+2026-09-29 17:39:55,162 INFO    live.analysis: field f5321 NEW_FIELD | UNCERTAIN score 0.79 smooth n/a | RBC 937 cov 0.40 | cellpose 11009ms feat 2187ms | stale=True
+2026-09-29 17:40:01,852 DEBUG   live.capture: field requested #13 f6461 (NEW_FIELD)
+2026-09-29 17:40:03,166 DEBUG   live.capture: field requested #14 f6508 (NEW_FIELD)
+2026-09-29 17:40:04,870 DEBUG   live.capture: field requested #15 f6569 (NEW_FIELD)
+2026-09-29 17:40:08,288 INFO    live.analysis: field f5811 NEW_FIELD | TOO_THICK score 0.77 smooth n/a | RBC 1011 cov 0.35 | cellpose 10851ms feat 2212ms | stale=True
+2026-09-29 17:40:08,785 DEBUG   live.capture: field requested #16 f6709 (NEW_FIELD)
+2026-09-29 17:40:13,452 DEBUG   live.capture: field requested #17 f6876 (NEW_FIELD)
+2026-09-29 17:40:14,516 DEBUG   live.capture: field requested #18 f6914 (NEW_FIELD)
+2026-09-29 17:40:17,926 INFO    live.capture: source ended; capture stopping
+2026-09-29 17:40:17,933 INFO    live.capture: capture worker stopped (7036 frames)
+2026-09-29 17:40:19,164 INFO    live.analysis: field f6569 NEW_FIELD | TOO_THIN  score 0.27 smooth n/a | RBC 157 cov 0.08 | cellpose 10493ms feat 340ms | stale=True
+2026-09-29 17:40:29,698 INFO    live.analysis: field f6914 NEW_FIELD | TOO_THIN  score 0.24 smooth n/a | RBC 41 cov 0.00 | cellpose 10410ms feat 91ms | stale=True
+2026-09-29 17:40:29,832 INFO    live.analysis: analysis worker stopped (14 fields, 159.5 s busy)

@@ -1,0 +1,45 @@
+2026-09-30 17:21:40,035 INFO    live.analysis: loading Cellpose model 'cpsam_v2' ...
+2026-09-30 17:21:41,340 INFO    live.capture: source opened: camera:0 | {'requested': {'width': 0, 'height': 0, 'fps': 0.0}, 'actual': {'width': 800, 'height': 448, 'fps': 0.0, 'backend': 'dshow'}}
+2026-09-30 17:21:41,381 INFO    live.capture: motion threshold auto-scaled: 100 px at width 800
+2026-09-30 17:21:41,581 DEBUG   live.capture: field requested #1 f10 (FIRST_FIELD)
+2026-09-30 17:21:42,309 WARNING cellpose.vit: Could not import CPDINO, run `pip install git+https://github.com/facebookresearch/dinov3` to use CPDINO model
+2026-09-30 17:21:42,312 INFO    src.segmentation.cellpose_segmenter: Loading Cellpose model 'cpsam_v2' (device: CUDA - NVIDIA GeForce GTX 1080 Ti)...
+2026-09-30 17:21:42,448 INFO    cellpose.core: ** TORCH CUDA version installed and working. **
+2026-09-30 17:21:42,449 INFO    cellpose.core: >>>> using GPU (CUDA)
+2026-09-30 17:21:44,873 INFO    cellpose.models: >>>> loading model C:\Users\assad\.cellpose\models\cpsam_v2
+2026-09-30 17:21:45,382 INFO    live.capture: recording -> C:\AI-Guided Microscope Slide Navigation\outputs\live_session_20260930_172136\recorded.mp4
+2026-09-30 17:21:45,774 INFO    src.segmentation.cellpose_segmenter: Model loaded in 3.5 s
+2026-09-30 17:21:45,774 INFO    live.analysis: model ready on CUDA - NVIDIA GeForce GTX 1080 Ti (3.5s)
+2026-09-30 17:21:50,709 INFO    live.analysis: field f10 FIRST_FIELD | UNCERTAIN score 0.54 smooth 0.54 | RBC 876 cov 0.38 | cellpose 2809ms feat 2117ms | stale=False
+2026-09-30 17:22:01,602 DEBUG   live.capture: field requested #2 f930 (HEARTBEAT)
+2026-09-30 17:22:03,410 DEBUG   live.capture: field requested #3 f1015 (NEW_FIELD)
+2026-09-30 17:22:04,515 DEBUG   live.capture: field requested #4 f1067 (NEW_FIELD)
+2026-09-30 17:22:05,641 INFO    live.analysis: field f930 HEARTBEAT | UNCERTAIN score 0.45 smooth n/a | RBC 671 cov 0.31 | cellpose 2502ms feat 1505ms | stale=True
+2026-09-30 17:22:06,832 DEBUG   live.capture: field requested #5 f1176 (NEW_FIELD)
+2026-09-30 17:22:07,872 DEBUG   live.capture: field requested #6 f1224 (NEW_FIELD)
+2026-09-30 17:22:08,898 DEBUG   live.capture: field requested #7 f1269 (NEW_FIELD)
+2026-09-30 17:22:09,939 INFO    live.analysis: field f1067 NEW_FIELD | UNCERTAIN score 0.57 smooth n/a | RBC 819 cov 0.37 | cellpose 2338ms feat 1937ms | stale=True
+2026-09-30 17:22:14,375 INFO    live.analysis: field f1269 NEW_FIELD | UNCERTAIN score 0.50 smooth 0.52 | RBC 820 cov 0.35 | cellpose 2335ms feat 2006ms | stale=False
+2026-09-30 17:22:28,896 DEBUG   live.capture: field requested #8 f2206 (HEARTBEAT)
+2026-09-30 17:22:33,137 INFO    live.analysis: field f2206 HEARTBEAT | UNCERTAIN score 0.50 smooth 0.51 | RBC 839 cov 0.35 | cellpose 2302ms feat 1893ms | stale=False
+2026-09-30 17:22:44,144 DEBUG   live.capture: field requested #9 f2922 (NEW_FIELD)
+2026-09-30 17:22:45,152 DEBUG   live.capture: field requested #10 f2969 (NEW_FIELD)
+2026-09-30 17:22:47,393 DEBUG   live.capture: field requested #11 f3075 (NEW_FIELD)
+2026-09-30 17:22:48,345 INFO    live.analysis: field f2922 NEW_FIELD | UNCERTAIN score 0.50 smooth n/a | RBC 837 cov 0.35 | cellpose 2302ms feat 1886ms | stale=True
+2026-09-30 17:22:52,942 INFO    live.analysis: field f3075 NEW_FIELD | TOO_THICK score 0.46 smooth 0.49 | RBC 1003 cov 0.36 | cellpose 2333ms feat 2246ms | stale=False
+2026-09-30 17:23:07,408 DEBUG   live.capture: field requested #12 f4013 (HEARTBEAT)
+2026-09-30 17:23:12,722 INFO    live.analysis: field f4013 HEARTBEAT | TOO_THICK score 0.51 smooth 0.50 | RBC 1101 cov 0.39 | cellpose 2553ms feat 2729ms | stale=False
+2026-09-30 17:23:15,631 DEBUG   live.capture: field requested #13 f4393 (NEW_FIELD)
+2026-09-30 17:23:16,655 DEBUG   live.capture: field requested #14 f4441 (NEW_FIELD)
+2026-09-30 17:23:19,690 INFO    live.analysis: field f4393 NEW_FIELD | UNCERTAIN score 0.43 smooth n/a | RBC 833 cov 0.28 | cellpose 2287ms feat 1726ms | stale=True
+2026-09-30 17:23:24,260 INFO    live.analysis: field f4441 NEW_FIELD | UNCERTAIN score 0.55 smooth 0.52 | RBC 1015 cov 0.32 | cellpose 2329ms feat 2224ms | stale=False
+2026-09-30 17:23:36,664 DEBUG   live.capture: field requested #15 f5362 (HEARTBEAT)
+2026-09-30 17:23:42,070 INFO    live.analysis: field f5362 HEARTBEAT | UNCERTAIN score 0.56 smooth 0.53 | RBC 1017 cov 0.33 | cellpose 2568ms feat 2803ms | stale=False
+2026-09-30 17:23:56,664 DEBUG   live.capture: field requested #16 f6225 (HEARTBEAT)
+2026-09-30 17:24:01,762 INFO    live.analysis: field f6225 HEARTBEAT | UNCERTAIN score 0.54 smooth 0.54 | RBC 1015 cov 0.33 | cellpose 2794ms feat 2290ms | stale=False
+2026-09-30 17:24:16,670 DEBUG   live.capture: field requested #17 f7077 (HEARTBEAT)
+2026-09-30 17:24:21,984 INFO    live.analysis: field f7077 HEARTBEAT | UNCERTAIN score 0.56 smooth 0.55 | RBC 1015 cov 0.33 | cellpose 2281ms feat 2977ms | stale=False
+2026-09-30 17:24:36,672 DEBUG   live.capture: field requested #18 f7932 (HEARTBEAT)
+2026-09-30 17:24:42,301 INFO    live.capture: capture worker stopped (8136 frames)
+2026-09-30 17:24:42,402 INFO    live.analysis: field f7932 HEARTBEAT | UNCERTAIN score 0.56 smooth 0.55 | RBC 1013 cov 0.33 | cellpose 2953ms feat 2755ms | stale=False
+2026-09-30 17:24:42,413 INFO    live.analysis: analysis worker stopped (14 fields, 65.9 s busy)
