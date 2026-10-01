@@ -1,0 +1,6 @@
+2026-09-28 14:54:33,193 INFO    inspect_video: video=video_dataset.mp4  1920x1080 @ 35.77 fps (avg), 7036 frames, codec=h264
+2026-09-28 14:55:40,397 INFO    inspect_video: samples=704  sharpness median=16 (p5=3, p95=26)
+2026-09-28 14:55:40,397 INFO    inspect_video: brightness median=138.7 (min=120.1, max=151.5)
+2026-09-28 14:55:40,397 INFO    inspect_video: motion per sample gap: median=174 px, p75=291 px, p95=483 px
+2026-09-28 14:55:40,399 INFO    inspect_video: sample mix: still 25% | slow 7% | fast 68% | longest still 11.5 s
+2026-09-28 14:55:40,399 INFO    inspect_video: report -> C:\AI-Guided Microscope Slide Navigation\outputs\video_inspection\inspection_report.json

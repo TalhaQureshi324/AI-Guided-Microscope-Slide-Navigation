@@ -1,0 +1,92 @@
+{
+  "video": {
+    "path": "C:\\AI-Guided Microscope Slide Navigation\\Dataset\\video_dataset.mp4",
+    "width": 1920,
+    "height": 1080,
+    "fps_avg": 35.769,
+    "frames_meta": 7036,
+    "frames_decoded_end": 7036,
+    "duration_sec": 196.7,
+    "codec": "h264",
+    "samples_analyzed": 704,
+    "sample_every": 10
+  },
+  "sharpness_lapvar_quantiles": {
+    "min": 0.337,
+    "p5": 2.8,
+    "p25": 10.513,
+    "median": 15.622,
+    "p75": 20.621,
+    "p95": 25.518,
+    "max": 29.373
+  },
+  "brightness_quantiles": {
+    "min": 120.094,
+    "p5": 123.325,
+    "p25": 130.655,
+    "median": 138.723,
+    "p75": 147.321,
+    "p95": 149.81,
+    "max": 151.473
+  },
+  "contrast_quantiles": {
+    "min": 3.232,
+    "p5": 8.235,
+    "p25": 24.316,
+    "median": 56.624,
+    "p75": 75.199,
+    "p95": 82.192,
+    "max": 85.191
+  },
+  "saturation_quantiles": {
+    "min": 2.744,
+    "p5": 8.903,
+    "p25": 30.19,
+    "median": 62.262,
+    "p75": 86.177,
+    "p95": 104.397,
+    "max": 113.019
+  },
+  "overexposed_pct_quantiles": {
+    "min": 0.0,
+    "p5": 0.0,
+    "p25": 0.0,
+    "median": 0.0,
+    "p75": 0.0,
+    "p95": 0.0,
+    "max": 0.188
+  },
+  "underexposed_pct_quantiles": {
+    "min": 0.0,
+    "p5": 0.0,
+    "p25": 0.0,
+    "median": 0.0,
+    "p75": 0.0,
+    "p95": 0.0,
+    "max": 0.0
+  },
+  "motion_per_sample_gap_px": {
+    "min": 0.01,
+    "p5": 0.06,
+    "p25": 23.105,
+    "median": 173.62,
+    "p75": 290.65,
+    "p95": 483.488,
+    "max": 819.78
+  },
+  "motion_per_frame_px_median": 17.362,
+  "motion_pct_of_samples": {
+    "still_lt20px": 24.8,
+    "slow_20_100px": 7.0,
+    "fast_ge100px": 68.3
+  },
+  "longest_stationary_sec": 11.5,
+  "illumination_range": {
+    "brightness_spread": 31.4,
+    "note": "large spread (>~30) suggests exposure/illumination drift"
+  },
+  "timing": {
+    "decode_analyze_total_ms": 67146.4,
+    "per_sample_ms": 95.4
+  }
+}
