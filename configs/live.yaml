@@ -97,8 +97,8 @@ monolayer_score_cfg:
     comp_uniformity: 0.10
 
 classification_cfg:
-  prototype_count_min: 950    # prototype_count_gate - NOT validated (spec §18)
-  prototype_count_max: 1050
+  prototype_count_min: 920    # prototype_count_gate - NOT validated (spec §18)
+  prototype_count_max: 1025
   min_signals: 2
   thick_coverage_min: 0.45
   thick_degree_min: 1.8

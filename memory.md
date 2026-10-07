@@ -60,6 +60,9 @@ settings; results frozen in `outputs/cpsam_v2_baseline/` — never overwritten.
 coverage 0.34–0.39, normalized NN spacing 0.96–1.07, contact ratio 0.70–0.86,
 merge suspects ≈ 0.25% of cells. This produced the **prototype count gate
 950–1050** (explicitly NOT a validated threshold — FOV- and camera-specific).
+Provisional update 2026-10-01: the operator’s real-camera fields judged monolayer
+sit at ~940–1000 cells, so the live/video gate was moved to **920–1025** pending
+calibration with M/T/N/U labels.
 
 **Design rules established here (still in force):**
 - Cellpose lives in `external/cellpose` as a git submodule — import only, never modify.

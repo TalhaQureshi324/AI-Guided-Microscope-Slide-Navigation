@@ -82,8 +82,8 @@ classification:
   # PROTOTYPE count gate: static-baseline hypothesis (full-frame candidate
   # count, same FOV). NOT validated. Applied to the full-frame count so video
   # fields stay directly comparable with outputs/cpsam_v2_baseline.
-  prototype_count_min: 950
-  prototype_count_max: 1050
+  prototype_count_min: 920
+  prototype_count_max: 1025
   min_signals: 2                  # independent signals needed for THICK/THIN
   thick_coverage_min: 0.45
   thick_degree_min: 1.8
