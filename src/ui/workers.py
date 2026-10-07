@@ -253,6 +253,7 @@ class CaptureWorker(threading.Thread):
         base_meta = dict(
             cumulative_x=cx, cumulative_y=cy, cumulative_total=ct,
             screen_result=screen["fast_screen_result"],
+            screen_occupancy=screen["screen_occupancy"],
             sharpness=sharpness, brightness=brightness,
         )
         if manual:
@@ -501,6 +502,8 @@ class FeatureWorker(threading.Thread):
                 row["possible_merged_rbc"] = False
                 row["n_dt_peaks"] = 0
 
+        features["screen_occupancy"] = float(job.screen_occupancy)
+
         f_cfg = self.cfg
         ref_frame = f_cfg.get("reference_frame") or None
         features = compute_field_features(
@@ -513,7 +516,10 @@ class FeatureWorker(threading.Thread):
             reference_shape=tuple(ref_frame) if ref_frame else None,
         )
         score, comps = prototype_monolayer_score(features, self.cfg["monolayer_score_cfg"])
-        raw_class, _evidence = classify_field(features, score, self.cfg["classification_cfg"])
+        raw_class, _evidence = classify_field(
+            features, score, self.cfg["classification_cfg"],
+            screen_occupancy=job.screen_occupancy,
+        )
         features_ms = (time.perf_counter() - t0) * 1000.0
 
         # ---- freshness: only AUTO results drive the live field (spec §15/§16)

@@ -54,6 +54,7 @@ class AnalysisJob:
     cumulative_y: float = 0.0
     cumulative_total: float = 0.0
     screen_result: str = ""
+    screen_occupancy: float = 0.0
     sharpness: float = 0.0
     brightness: float = 0.0
     status: str = QUEUED

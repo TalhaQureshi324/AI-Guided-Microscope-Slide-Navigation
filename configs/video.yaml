@@ -86,6 +86,12 @@ classification:
   prototype_count_max: 1025
   min_signals: 2                  # independent signals needed for THICK/THIN
   thick_coverage_min: 0.45
+  # gross-occupancy override: pre-Cellpose screen dark-foreground
+  # fraction at/above which the field is TOO_THICK without needing
+  # a second signal (clumped networks defeat segmentation; see
+  # classify_field). Active only when occupancy is passed in
+  # (live pipeline passes it; older offline drivers do not).
+  thick_occupancy_min: 0.55
   thick_degree_min: 1.8
   thick_cluster_frac_min: 0.75
   thin_coverage_max: 0.25

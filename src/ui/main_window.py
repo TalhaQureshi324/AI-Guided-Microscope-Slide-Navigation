@@ -314,13 +314,18 @@ class MainWindow(QMainWindow):
             colour = CLASS_COLOURS_BGR.get(viewing_job.raw_class, _GREY)
             frame = draw_class_border(img, colour, thickness=6)
             merges = (viewing_job.features or {}).get("merge_suspect_count", "?")
+            occ = (viewing_job.features or {}).get("screen_occupancy")
+            gross = (viewing_job.features or {}).get("screen_gross_thick", False)
+            cls_txt = (f"{viewing_job.raw_class} (screen)" if gross
+                       else str(viewing_job.raw_class))
+            occ_txt = f"   screen occ {occ * 100:.0f}%" if occ is not None else ""
             lines = [
                 (f"JOB #{viewing_job.job_id}  [{viewing_job.priority}]", _GREY),
-                (f"RESULT: {viewing_job.raw_class}   score {viewing_job.score:.2f}",
+                (f"RESULT: {cls_txt}   score {viewing_job.score:.2f}",
                  CLASS_COLOURS_BGR.get(viewing_job.raw_class, _GREY)),
                 (f"RBCs {(viewing_job.features or {}).get('rbc_candidate_count', '?')}"
                  f"   coverage {(viewing_job.features or {}).get('coverage', 0) * 100:.0f}%"
-                 f"   merge suspects {merges}", _GREY),
+                 f"   merge suspects {merges}{occ_txt}", _GREY),
                 (f"press ● LIVE to return to the camera feed", _GREY),
             ]
             frame = draw_live_hud(frame, lines)

@@ -253,6 +253,19 @@ result 11.4 s, total 20.4 s, 3.1 GB; 2 workers: total 19.1 s (best), 6.3 GB;
 **Recommendation: 1 GPU worker + 2 CPU feature workers** (shipped default);
 more GPU workers cost VRAM and latency for no real throughput gain.
 
+**Gross-occupancy thick signal (2026-10-01, evening):** a clumped-network
+field (job #8) defeated segmentation - cpsam returned only 20 masks over a
+visually massive region - so its count/coverage read as bogus thin signals
+and it classified TOO_THIN. Fix: the cheap pre-Cellpose screen's dark-
+foreground occupancy is now a classifier input - occupancy >= 0.55
+(`thick_occupancy_min`, configurable) classifies the field TOO_THICK
+outright (tagged "(screen)" in the job viewer), because a mostly-foreground
+frame is thick regardless of what the failed count says (spec section 23:
+extremely dense regions need "move away", not a count). Validated on six
+field archetypes including the failing one; empty/sparse fields still thin,
+monolayer unchanged. Occupancy is also stored per job (results CSV) for
+calibration.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration

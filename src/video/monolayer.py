@@ -264,15 +264,41 @@ def prototype_monolayer_score(features: Dict, score_cfg: Dict) -> Tuple[float, D
 
 # ---------------------------------------------------------------- classifier
 def classify_field(
-    features: Dict, score: float, cls_cfg: Dict
+    features: Dict, score: float, cls_cfg: Dict,
+    screen_occupancy: Optional[float] = None,
 ) -> Tuple[str, Dict]:
     """Prototype three-class decision + UNCERTAIN (spec sections 13, 27).
 
     Evidence-vote design: TOO_THICK / TOO_THIN require at least
     ``min_signals`` independent signals to agree, so a single feature (e.g.
     count alone) can never decide the class.
+
+    Gross-occupancy override (2026-10-01, operator-approved): when the cheap
+    pre-Cellpose screen reports the frame is mostly dark foreground
+    (``screen_occupancy`` >= ``thick_occupancy_min``), the field is
+    TOO_THICK outright. Rationale: extremely clumped networks defeat
+    segmentation (few giant masks, low candidate count), which would
+    otherwise read as bogus thin signals - a region that is mostly
+    foreground is thick regardless of what the failed count says, and
+    navigation only needs "move away" (spec section 23).
     """
     count = features["rbc_candidate_count"]  # full-frame, comparable to static baseline
+
+    gross_min = cls_cfg.get("thick_occupancy_min")
+    screen_gross = bool(
+        gross_min is not None
+        and screen_occupancy is not None
+        and np.isfinite(screen_occupancy)
+        and screen_occupancy >= gross_min
+    )
+    if screen_gross:
+        return TOO_THICK, {
+            "thick_signals": {"screen_occupancy_gross": True},
+            "thin_signals": {},
+            "thick_signal_count": 1,
+            "thin_signal_count": 0,
+            "screen_gross_thick": True,
+        }
     thick_signals = {
         "count_above_gate": count > cls_cfg["prototype_count_max"],
         "coverage_high": features["coverage"] > cls_cfg["thick_coverage_min"],
