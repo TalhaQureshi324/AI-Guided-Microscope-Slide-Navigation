@@ -274,6 +274,18 @@ label; selecting a completed job binds EVERY sidebar metric (counts, features,
 score, class, timings) to that job's single result object; returning to LIVE
 restores the live analysis. The live banner is hidden while a job is viewed.
 
+**Phase 1 - persistent scan map (2026-10-07):** every analyzed field is now
+stored as a spatial FOOTPRINT (x, y, w, h rectangle - not a dot) in the
+cumulative-displacement coordinate system, via the new `src/live/scan_map.py`
+(`ScanMap`, thread-safe, `scan_map.json` persisted per session after every
+field; swappable later for real stage coordinates without touching the GUI).
+The old scan strip was replaced by a real **SCAN MAP panel**: class-coloured
+footprint rectangles (red/blue/amber, green for monolayer), human-label
+ticks, and a cyan crosshair at the current live scan position; it remembers
+all fields until Reset Scan (R). Regression: 2 video fields analyzed and
+persisted with correct footprints; the occupancy fix proved itself live
+(clumped intro fields now correctly TOO_THICK instead of TOO_THIN).
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration

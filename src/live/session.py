@@ -151,6 +151,10 @@ class LiveSession:
             cv2.imwrite(str(self.dir / "masks" / f"job_{j.job_id:04d}.png"),
                         j.labels.astype(np.int32))
 
+    def save_scan_map(self, scan_map) -> None:
+        """Persist the spatial survey (Phase 1) after every analyzed field."""
+        scan_map.save(self.dir / "scan_map.json")
+
     def save_snapshot(self, frame, frame_idx: int) -> None:
         """SAVE SNAPSHOT button: store the raw frame without any analysis."""
         name = f"snapshot_f{frame_idx:06d}"

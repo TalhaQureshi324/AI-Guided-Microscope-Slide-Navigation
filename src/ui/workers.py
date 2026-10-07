@@ -441,7 +441,8 @@ class FeatureWorker(threading.Thread):
 
     def __init__(self, worker_id: str, state: SharedState, cfg: Dict,
                  jobmgr: JobManager, maskq: _MaskQueue, session=None,
-                 smoother: Optional[TemporalSmoother] = None) -> None:
+                 smoother: Optional[TemporalSmoother] = None,
+                 scan_map=None) -> None:
         super().__init__(name=worker_id, daemon=True)
         self.worker_id = worker_id
         self.state = state
@@ -449,6 +450,7 @@ class FeatureWorker(threading.Thread):
         self.jobmgr = jobmgr
         self.maskq = maskq
         self.session = session
+        self.scan_map = scan_map
         self.smoother = smoother or TemporalSmoother(
             alpha=cfg.get("temporal_alpha", 0.4),
             window=cfg.get("temporal_window", 5),
@@ -502,8 +504,6 @@ class FeatureWorker(threading.Thread):
                 row["possible_merged_rbc"] = False
                 row["n_dt_peaks"] = 0
 
-        features["screen_occupancy"] = float(job.screen_occupancy)
-
         f_cfg = self.cfg
         ref_frame = f_cfg.get("reference_frame") or None
         features = compute_field_features(
@@ -515,6 +515,7 @@ class FeatureWorker(threading.Thread):
             uniformity_grid=f_cfg.get("uniformity_grid", 4),
             reference_shape=tuple(ref_frame) if ref_frame else None,
         )
+        features["screen_occupancy"] = float(job.screen_occupancy)
         score, comps = prototype_monolayer_score(features, self.cfg["monolayer_score_cfg"])
         raw_class, _evidence = classify_field(
             features, score, self.cfg["classification_cfg"],
@@ -554,6 +555,13 @@ class FeatureWorker(threading.Thread):
         job.features_ms = features_ms
         job.t_end = time.perf_counter()
         self.jobmgr.mark(job, COMPLETE, self.worker_id)
+
+        # ---- persistent scan map (Phase 1): store this field's footprint
+        if self.scan_map is not None and job.score is not None:
+            source_image = f"keyframes/job_{job.job_id:04d}_f{job.frame_idx:06d}.jpg"
+            self.scan_map.add_field(job, source_image=source_image)
+            if self.session is not None:
+                self.session.save_scan_map(self.scan_map)
 
         if job.priority == "AUTO":
             st.publish_auto_result(job)

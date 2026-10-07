@@ -30,6 +30,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.live.controller import LiveFieldController
+from src.ui.scan_map_panel import ScanMapPanel
 from src.ui.rendering import (
     CLASS_COLOURS_BGR,
     draw_class_border,
@@ -57,52 +58,17 @@ def _np_to_qimage(frame_bgr: np.ndarray) -> QImage:
     return img.copy()  # detach from the numpy buffer
 
 
-class ScanStrip(QFrame):
-    """Prototype scan-history strip: displacement -> score (future slide map)."""
-
-    def set_history(self, history, cum_x, cum_y):
-        self._history = history
-        self._pos = (cum_x, cum_y)
-        self.update()
-
-    def paintEvent(self, ev):  # noqa: N802 (Qt naming)
-        from PyQt6.QtGui import QPainter, QColor, QPen
-
-        p = QPainter(self)
-        p.fillRect(self.rect(), QColor(20, 20, 20))
-        p.setPen(QPen(QColor(120, 120, 120), 1))
-        p.drawText(6, 14, "scan history (cumulative dx, dy) -> score   [future slide map]")
-        hist = getattr(self, "_history", [])
-        if hist:
-            xs = [h["cum_x"] for h in hist]
-            ys = [h["cum_y"] for h in hist]
-            min_x, max_x = min(xs), max(xs + [max(xs) + 1.0])
-            min_y, max_y = min(ys), max(ys + [max(ys) + 1.0])
-            w, hgt = self.width() - 20, self.height() - 34
-            for pt in hist:
-                fx = (pt["cum_x"] - min_x) / max(1.0, (max_x - min_x))
-                fy = (pt["cum_y"] - min_y) / max(1.0, (max_y - min_y))
-                colour = {"TOO_THICK": "#d32f2f", "MONOLAYER": "#2e7d32",
-                          "TOO_THIN": "#1565c0", "UNCERTAIN": "#ef6c00"}.get(
-                              pt["raw_class"], "#888888")
-                alpha = 255 if not pt["stale"] else 90
-                c = QColor(colour)
-                c.setAlpha(alpha)  # PyQt6: QColor has no alpha= keyword
-                p.setBrush(c)
-                p.setPen(QPen(c, 1))
-                p.drawEllipse(10 + int(fx * w), 24 + int(fy * hgt), 6, 6)
-        p.end()
-
-
 class MainWindow(QMainWindow):
     def __init__(self, state: SharedState, controller: LiveFieldController,
-                 cfg: Dict, session=None, view_only: bool = False, jobmgr=None):
+                 cfg: Dict, session=None, view_only: bool = False, jobmgr=None,
+                 scan_map=None):
         super().__init__()
         self.state = state
         self.controller = controller
         self.cfg = cfg
         self.session = session
         self.jobmgr = jobmgr
+        self.scan_map = scan_map
         self.view_only = view_only
         self.ui_fps = 0.0
         self._ui_frames = 0
@@ -230,13 +196,12 @@ class MainWindow(QMainWindow):
         self.job_list.itemClicked.connect(self._on_job_selected)
         pv.addWidget(self.job_list)
 
-        strip_label = QLabel("SCAN HISTORY")
+        strip_label = QLabel("SCAN MAP (spatial survey)")
         strip_label.setStyleSheet("color:#9e9e9e; font-size:12px;")
         pv.addWidget(strip_label)
-        self.scan_strip = ScanStrip()
-        self.scan_strip.setFixedHeight(90)
-        self.scan_strip.setStyleSheet("border:1px solid #333;")
-        pv.addWidget(self.scan_strip)
+        self.scan_map_panel = ScanMapPanel()
+        self.scan_map_panel.setStyleSheet("border:1px solid #333;")
+        pv.addWidget(self.scan_map_panel)
 
         self.hint = QLabel(
             "keys: SPACE pause | A analyze now | D ids | O outlines | "
@@ -541,9 +506,9 @@ class MainWindow(QMainWindow):
             + (f"\n{jobs_txt}" if jobs_txt else "")
         )
         self._refresh_job_list()
-        self.scan_strip.set_history(list(self.state.history),
-                                    self.state.current_net()[0],
-                                    self.state.cum_y)
+        if self.scan_map is not None:
+            self.scan_map_panel.set_data(self.scan_map.fields(),
+                                         self.state.current_net())
         self.statusBar().showMessage(
             f"● {self.state_source} | capture {snap['capture_fps']:.1f} fps | "
             f"ui {self.ui_fps:.0f} fps | motion {snap['motion_state']} | "
@@ -619,6 +584,8 @@ class MainWindow(QMainWindow):
             self.controller.reset_session()
             with st.lock:
                 st.history.clear()
+            if self.scan_map is not None:
+                self.scan_map.reset()
         elif key == "g":
             with st.lock:
                 st.recording = not st.recording
@@ -630,6 +597,8 @@ class MainWindow(QMainWindow):
             job = self._selected_completed_job()
             if job is not None:
                 self.session.save_label(key, job.frame, job)
+                if self.scan_map is not None:
+                    self.scan_map.set_human_label(job.job_id, key.upper())
             elif hasattr(self, "_latest"):
                 self.session.save_label(key, self._latest["frame"],
                                         self._latest["snap"]["result"])

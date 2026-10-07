@@ -33,6 +33,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from src.capture.sources import make_source  # noqa: E402
 from src.live.controller import LiveFieldController  # noqa: E402
 from src.live.jobs import JobManager  # noqa: E402
+from src.live.scan_map import ScanMap  # noqa: E402
 from src.live.session import LiveSession  # noqa: E402
 from src.ui.state import SharedState  # noqa: E402
 from src.ui.workers import CaptureWorker, FeatureWorker, GPUWorker, _MaskQueue  # noqa: E402
@@ -69,16 +70,17 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def build_pool(state, cfg, jobmgr: JobManager, session=None):
+def build_pool(state, cfg, jobmgr: JobManager, session=None, scan_map=None):
     """Configurable worker pool: N GPU Cellpose workers + M CPU feature
-    workers over one job manager (spec §7/§10 - benchmark before increasing)."""
+    workers over one job manager (spec §7/§10 - benchmark before raising)."""
     maskq = _MaskQueue(maxsize=8)
     gpu = [
         GPUWorker(f"gpu{i + 1}", state, cfg, jobmgr, maskq)
         for i in range(int(cfg.get("gpu_workers", 1)))
     ]
     cpu = [
-        FeatureWorker(f"cpu{i + 1}", state, cfg, jobmgr, maskq, session=session)
+        FeatureWorker(f"cpu{i + 1}", state, cfg, jobmgr, maskq, session=session,
+                      scan_map=scan_map)
         for i in range(int(cfg.get("cpu_feature_workers", 2)))
     ]
     return maskq, gpu, cpu
@@ -142,6 +144,7 @@ def main() -> int:
     source = make_source(cfg["source"], cfg)
 
     session = None
+    scan_map = None
     if args.view_only:
         # capture worker only (spec §5: prove the feed before Cellpose)
         capture = CaptureWorker(source, state, controller, cfg, session=None)
@@ -149,11 +152,13 @@ def main() -> int:
     else:
         jobmgr = JobManager(max_manual_queue=cfg.get("max_manual_queue", 20))
         state.jobmgr = jobmgr
+        scan_map = ScanMap()
         session = LiveSession(session_dir, cfg, cfg["source"], settings={})
         state.session_dir = str(session_dir)
         state.source_label = source.name
         capture = CaptureWorker(source, state, controller, cfg, jobmgr, session=session)
-        _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session)
+        _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
+                                                      scan_map=scan_map)
         if cfg.get("record_enabled"):
             state.recording = True
         capture.start()
@@ -178,11 +183,13 @@ def main() -> int:
     sys.excepthook = _quit_on_crash
 
     win = MainWindow(state, controller, cfg, session=session,
-                     view_only=args.view_only, jobmgr=jobmgr)
+                     view_only=args.view_only, jobmgr=jobmgr, scan_map=scan_map)
     if args.view_only:
         win.statusBar().showMessage("VIEW-ONLY mode: no Cellpose (camera check)")
     win.show()
     rc = app.exec()
+    if scan_map is not None and session is not None:
+        session.save_scan_map(scan_map)
     _shutdown(state, session_dir, session)
     return rc
 
@@ -205,11 +212,13 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
     source = make_source(cfg["source"], cfg)
     jobmgr = JobManager(max_manual_queue=cfg.get("max_manual_queue", 20))
     state.jobmgr = jobmgr
+    scan_map = ScanMap()
     session = LiveSession(session_dir, cfg, cfg["source"], settings={})
     state.session_dir = str(session_dir)
     state.source_label = source.name
     capture = CaptureWorker(source, state, controller, cfg, jobmgr, session=session)
-    _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session)
+    _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
+                                                  scan_map=scan_map)
     t0 = time.perf_counter()
     capture.start()
     for w in gpu_workers + cpu_workers:
@@ -255,7 +264,9 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
     for w in gpu_workers + cpu_workers:
         w.join(timeout=10)
     elapsed = time.perf_counter() - t0
+    session.save_scan_map(scan_map)
     summary = session.write_summary(state, elapsed, jobmgr=jobmgr)
+    summary["scan_map_fields"] = len(scan_map.fields())
 
     r = state.result
     print("=" * 70)
