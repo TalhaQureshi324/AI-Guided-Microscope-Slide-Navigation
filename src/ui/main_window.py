@@ -174,6 +174,10 @@ class MainWindow(QMainWindow):
         title = QLabel("LIVE ANALYSIS")
         title.setStyleSheet("color:#ececec; font-size:15px; font-weight:bold; padding:4px;")
         pv.addWidget(title)
+        self.view_label = QLabel("VIEWING: LIVE")
+        self.view_label.setStyleSheet(
+            "color:#4fc3f7; font-size:13px; font-weight:bold; padding:2px 4px;")
+        pv.addWidget(self.view_label)
         self.status_top = QLabel("")
         self.status_top.setStyleSheet("color:#bdbdbd; font-size:12px; padding:2px;")
         pv.addWidget(self.status_top)
@@ -306,6 +310,9 @@ class MainWindow(QMainWindow):
         # ---- job viewer: a selected completed job owns the viewport ------
         viewing_job = self._selected_completed_job()
         if viewing_job is not None and viewing_job.frame is not None:
+            if self._last_banner_state:  # live banner must not leak into job view
+                self.banner.setVisible(False)
+                self._last_banner_state = False
             img = viewing_job.frame.copy()
             if snap["outlines_on"] and viewing_job.overlay_layer is not None:
                 img = cv2.bitwise_or(img, viewing_job.overlay_layer)
@@ -426,24 +433,50 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _panel_tick(self) -> None:
         snap = self.state.snapshot_display()
-        result = snap["result"]
         now = time.perf_counter()
+
+        # ---- explicit UI context (Phase 0): the panel shows exactly ONE
+        # result object - the selected completed job when one is chosen,
+        # otherwise the last valid live analysis. Never a mixture.
+        viewing_job = self._selected_completed_job()
+        selected_id = self._selected_job_id
+        if viewing_job is not None:
+            result = viewing_job
+            context = f"VIEWING: JOB #{viewing_job.job_id}"
+            stale = False            # a job's result belongs to its own snapshot
+            age = now - viewing_job.t_capture
+        elif snap["result"] is not None:
+            result = snap["result"]
+            context = "VIEWING: LIVE"
+            net_x, net_y = self.state.current_net()
+            stale = result.is_stale(
+                net_x, net_y, now,
+                self.cfg.get("result_stale_displacement", 160.0),
+                self.cfg.get("result_stale_seconds", 25.0))
+            age = now - result.t_capture
+        else:
+            result = None
+            context = "VIEWING: LIVE"
+            stale = False
+            age = None
+
+        if selected_id is not None and viewing_job is None:
+            context += f"  (job #{selected_id} not finished - live shown)"
+        self.view_label.setText(context)
+        self.view_label.setStyleSheet(
+            "color:#4fc3f7; font-size:13px; font-weight:bold; padding:2px 4px;"
+            if viewing_job is None else
+            "color:#ffb74d; font-size:13px; font-weight:bold; padding:2px 4px;")
 
         if result is None:
             for v in self.metrics.values():
                 v.setText("-")
             self.status_top.setText("no detailed result yet")
         else:
-            net_x, net_y = self.state.current_net()
-            stale = result.is_stale(
-                net_x, net_y, now,
-                self.cfg.get("result_stale_displacement", 160.0),
-                self.cfg.get("result_stale_seconds", 25.0))
             f = result.features
-            age = now - result.t_capture
             border = sum(1 for x in result.rows
                          if x.get("rbc_candidate") and x.get("touches_border"))
-            colour = _QT_COLORS.get("STALE" if stale else result.raw_class, "#ececec")
+            colour = _QT_COLORS.get(result.raw_class, "#ececec")
             self._set("cellpose_instances", f.get("cellpose_instance_count"))
             self._set("rbc_candidates", f.get("rbc_candidate_count"))
             self._set("valid_region_rbc", f.get("valid_region_rbc_count"))
@@ -471,7 +504,8 @@ class MainWindow(QMainWindow):
             self._set("age", f"{age:.1f} s{'  [STALE]' if stale else ''}")
             self._set("meta",
                       f"job #{result.job_id} f{result.frame_idx} | {result.feature_mode} mode | "
-                      f"cellpose {result.cellpose_ms / 1000:.1f}s | features {result.features_ms / 1000:.1f}s")
+                      f"cellpose {(result.cellpose_ms or 0) / 1000:.1f}s | "
+                      f"features {(result.features_ms or 0) / 1000:.1f}s")
 
         cp = snap["cellpose_state"]
         cp_txt = ("PROCESSING previous field ..." if cp == "PROCESSING"
@@ -490,10 +524,20 @@ class MainWindow(QMainWindow):
                 jobs_txt += (f"\nlatest capture: job #{last_m.job_id} "
                              f"{last_m.raw_class} score {last_m.score:.2f}{lbl}")
 
+        if viewing_job is not None:
+            scope = (f"all metrics belong to job #{viewing_job.job_id} "
+                     f"(captured at frame {viewing_job.frame_idx}) - "
+                     f"press \u25cf LIVE to return to the live analysis")
+        elif stale:
+            scope = ("live result is STALE - microscope has moved; "
+                     "capture or wait for a new analysis")
+        else:
+            scope = "live result - metrics describe the current field"
+
         self.status_top.setText(
-            f"Cellpose: {cp_txt}\n"
-            f"analyses: {snap['analysis_count']} | superseded auto: "
-            f"{self.jobmgr.superseded_auto if self.jobmgr else 0} (latest-frame policy)"
+            f"{scope}\n"
+            f"Cellpose: {cp_txt} | analyses: {snap['analysis_count']} | "
+            f"superseded auto: {self.jobmgr.superseded_auto if self.jobmgr else 0}"
             + (f"\n{jobs_txt}" if jobs_txt else "")
         )
         self._refresh_job_list()

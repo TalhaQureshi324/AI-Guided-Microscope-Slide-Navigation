@@ -266,6 +266,14 @@ field archetypes including the failing one; empty/sparse fields still thin,
 monolayer unchanged. Occupancy is also stored per job (results CSV) for
 calibration.
 
+**Phase 0 - result synchronization (2026-10-01):** the sidebar could show a
+stale live result while the viewport showed a selected job (two different
+result objects - pure GUI state binding, no counting error). The panel now
+has explicit contexts: **VIEWING: LIVE** vs **VIEWING: JOB #N** with a bold
+label; selecting a completed job binds EVERY sidebar metric (counts, features,
+score, class, timings) to that job's single result object; returning to LIVE
+restores the live analysis. The live banner is hidden while a job is viewed.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration
