@@ -163,9 +163,10 @@ class CaptureWorker(threading.Thread):
                 seq += 1
                 try:
                     self._process_frame(frame, t_src, seq)
-                except Exception:  # noqa: BLE001 - a live feed must never hang
+                except Exception as exc:  # noqa: BLE001 - never hang, but SHOUT
                     logger.exception("capture frame %d failed", seq)
-                    st.last_error = "capture frame processing error (see run.log)"
+                    st.last_error = f"capture frame error: {exc}"
+                    st.source_error = f"CAPTURE STOPPED: {exc}"
                     break
                 if (
                     self.cfg.get("max_analyses")

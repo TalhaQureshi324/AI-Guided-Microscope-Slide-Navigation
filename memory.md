@@ -354,6 +354,21 @@ reset between sweeps - they accumulate across sweeps. All of it persists
 in scan_map.json and dies only with Reset Scan. Stage-coordinate
 replacement later = swap the offset/position source in ScanMap only.
 
+**Launch-freeze bug (2026-10-08, found via user session log):** the GUI
+froze on the first AUTO/manual job because AnalysisJob never received the
+map_x/map_y fields - the Phase 6 patch that added them silently no-opped
+(non-consecutive anchor text, no assert) while the job-submission code DID
+pass them -> TypeError -> capture thread died at frame 10 -> frozen feed,
+dead buttons, 3 fps of a static frame. Fixes: fields added (with assert);
+a dead capture thread now shows 'CAPTURE STOPPED: <reason>' in the viewport
+instead of a silent freeze. Audit of all Phase 0-6 tick paths (profiled at
+11.5 ms/render tick offscreen) confirmed no GUI-thread starvation - the
+3 fps was the frozen-pipeline symptom. Also fixed in the same sweep:
+missing nav_machine param on MainWindow (first real-launch crash) and the
+mono_rects rename leftover in ScanMapPanel.set_data (NameError on empty
+survey startup). Lesson: EVERY scripted patch gets an assert; tests must
+use the exact production call signatures.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration
