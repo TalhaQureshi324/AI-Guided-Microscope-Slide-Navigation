@@ -286,6 +286,21 @@ all fields until Reset Scan (R). Regression: 2 video fields analyzed and
 persisted with correct footprints; the occupancy fix proved itself live
 (clumped intro fields now correctly TOO_THICK instead of TOO_THIN).
 
+**Phase 2 - monolayer enter/exit state machine (2026-10-07):**
+`src/live/nav_state.py` - four states (OUTSIDE/ENTERING/IN_MONOLAYER/
+LEAVING) driven ONLY by the smoothed multi-feature Monolayer Score of fresh
+AUTO fields, with HYSTERESIS: enter 0.65 > exit 0.45 plus 2-consecutive-
+field confirmation on both sides (configs/live.yaml `navigation:`). Mid-band
+scores hold the current state - no flicker. The GUI banner now permanently
+shows the machine state (green ✓ CURRENTLY IN MONOLAYER / amber ENTERING /
+orange ⚠ LEAVING / red OUTSIDE) and Reset Scan resets it. Every transition
+is logged with timestamp + scan position (nav_transitions.csv) for Phase 4
+boundary reconstruction. Bugs the tests caught: RLock needed (update() ->
+view() self-deadlock), leaving-count was reset instead of incremented
+(IN->LEAVING never fired), missing src/live/__init__.py, view-only
+CaptureWorker arg order. Untracked user sessions
+(live_session_20261001_*, live_p2_regression2) left for the user's commit.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration
