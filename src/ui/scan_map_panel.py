@@ -124,7 +124,8 @@ class ScanMapPanel(QWidget):
             self._boundary = boundary
             self._boundary_version = boundary_version
         self._current = current_pos
-        self._has_content = bool(fields or mono_rects or self._boundary or current_pos)
+        self._has_content = bool(fields or monolayer_rects or self._boundary
+                                 or current_pos)
         self.update()
 
     # -------------------------------------------------------------- paint

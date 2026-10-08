@@ -61,7 +61,7 @@ def _np_to_qimage(frame_bgr: np.ndarray) -> QImage:
 class MainWindow(QMainWindow):
     def __init__(self, state: SharedState, controller: LiveFieldController,
                  cfg: Dict, session=None, view_only: bool = False, jobmgr=None,
-                 scan_map=None):
+                 scan_map=None, nav_machine=None):
         super().__init__()
         self.state = state
         self.controller = controller
@@ -69,6 +69,7 @@ class MainWindow(QMainWindow):
         self.session = session
         self.jobmgr = jobmgr
         self.scan_map = scan_map
+        self.nav_machine = nav_machine
         self.view_only = view_only
         self.ui_fps = 0.0
         self._ui_frames = 0
