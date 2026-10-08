@@ -129,6 +129,17 @@ manual_analysis:
   detailed_features: true      # manual captures always get the full treatment
   merge_analysis: true         # incl. DT merge suspects (orange outlines)
 
+# ---- navigation state machine (Phase 2) --------------------------------------
+# Experimental prototype values - enter must be ABOVE exit (hysteresis) so
+# the GUI cannot flicker between states. Count is never an input: the
+# machine runs on the multi-feature smoothed Monolayer Score of FRESH
+# automatic fields only.
+navigation:
+  enter_score: 0.65
+  exit_score: 0.45
+  enter_consecutive_fields: 2
+  exit_consecutive_fields: 2
+
 # ---- result freshness (spec §15-16) -------------------------------------------
 result_stale_displacement: 160.0   # px of movement that voids a result
 result_stale_seconds: 25.0

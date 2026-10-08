@@ -33,6 +33,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from src.capture.sources import make_source  # noqa: E402
 from src.live.controller import LiveFieldController  # noqa: E402
 from src.live.jobs import JobManager  # noqa: E402
+from src.live.nav_state import NavigationStateMachine  # noqa: E402
 from src.live.scan_map import ScanMap  # noqa: E402
 from src.live.session import LiveSession  # noqa: E402
 from src.ui.state import SharedState  # noqa: E402
@@ -70,7 +71,8 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def build_pool(state, cfg, jobmgr: JobManager, session=None, scan_map=None):
+def build_pool(state, cfg, jobmgr: JobManager, session=None, scan_map=None,
+               nav_machine=None):
     """Configurable worker pool: N GPU Cellpose workers + M CPU feature
     workers over one job manager (spec §7/§10 - benchmark before raising)."""
     maskq = _MaskQueue(maxsize=8)
@@ -80,7 +82,7 @@ def build_pool(state, cfg, jobmgr: JobManager, session=None, scan_map=None):
     ]
     cpu = [
         FeatureWorker(f"cpu{i + 1}", state, cfg, jobmgr, maskq, session=session,
-                      scan_map=scan_map)
+                      scan_map=scan_map, nav_machine=nav_machine)
         for i in range(int(cfg.get("cpu_feature_workers", 2)))
     ]
     return maskq, gpu, cpu
@@ -145,20 +147,28 @@ def main() -> int:
 
     session = None
     scan_map = None
+    jobmgr = None
+    nav = NavigationStateMachine(
+        enter_score=cfg.get("navigation", {}).get("enter_score", 0.65),
+        exit_score=cfg.get("navigation", {}).get("exit_score", 0.45),
+        enter_consecutive_fields=cfg.get("navigation", {}).get("enter_consecutive_fields", 2),
+        exit_consecutive_fields=cfg.get("navigation", {}).get("exit_consecutive_fields", 2),
+    )
     if args.view_only:
         # capture worker only (spec §5: prove the feed before Cellpose)
-        capture = CaptureWorker(source, state, controller, cfg, session=None)
+        capture = CaptureWorker(source, state, controller, cfg, None, session=None)
         capture.start()
     else:
         jobmgr = JobManager(max_manual_queue=cfg.get("max_manual_queue", 20))
         state.jobmgr = jobmgr
         scan_map = ScanMap()
+        state.nav_machine = nav
         session = LiveSession(session_dir, cfg, cfg["source"], settings={})
         state.session_dir = str(session_dir)
         state.source_label = source.name
         capture = CaptureWorker(source, state, controller, cfg, jobmgr, session=session)
         _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
-                                                      scan_map=scan_map)
+                                                      scan_map=scan_map, nav_machine=nav)
         if cfg.get("record_enabled"):
             state.recording = True
         capture.start()
@@ -183,7 +193,8 @@ def main() -> int:
     sys.excepthook = _quit_on_crash
 
     win = MainWindow(state, controller, cfg, session=session,
-                     view_only=args.view_only, jobmgr=jobmgr, scan_map=scan_map)
+                     view_only=args.view_only, jobmgr=jobmgr, scan_map=scan_map,
+                     nav_machine=nav)
     if args.view_only:
         win.statusBar().showMessage("VIEW-ONLY mode: no Cellpose (camera check)")
     win.show()
@@ -213,12 +224,19 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
     jobmgr = JobManager(max_manual_queue=cfg.get("max_manual_queue", 20))
     state.jobmgr = jobmgr
     scan_map = ScanMap()
+    nav = NavigationStateMachine(
+        enter_score=cfg.get("navigation", {}).get("enter_score", 0.65),
+        exit_score=cfg.get("navigation", {}).get("exit_score", 0.45),
+        enter_consecutive_fields=cfg.get("navigation", {}).get("enter_consecutive_fields", 2),
+        exit_consecutive_fields=cfg.get("navigation", {}).get("exit_consecutive_fields", 2),
+    )
+    state.nav_machine = nav
     session = LiveSession(session_dir, cfg, cfg["source"], settings={})
     state.session_dir = str(session_dir)
     state.source_label = source.name
     capture = CaptureWorker(source, state, controller, cfg, jobmgr, session=session)
     _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
-                                                  scan_map=scan_map)
+                                                  scan_map=scan_map, nav_machine=nav)
     t0 = time.perf_counter()
     capture.start()
     for w in gpu_workers + cpu_workers:
@@ -267,6 +285,18 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
     session.save_scan_map(scan_map)
     summary = session.write_summary(state, elapsed, jobmgr=jobmgr)
     summary["scan_map_fields"] = len(scan_map.fields())
+    summary["nav_final_state"] = nav.state
+    nav_tr = nav.transitions_as_dicts()
+    summary["nav_transitions"] = nav_tr
+    write_summary_fix = {"scan_map_fields": summary["scan_map_fields"],
+                         "nav_final_state": summary["nav_final_state"],
+                         "nav_transitions": nav_tr}
+    # rewrite the summary file with the post-summary keys included
+    import json as _json
+    full = dict(summary)
+    full.update(write_summary_fix)
+    (session.dir / "runtime_summary.json").write_text(
+        _json.dumps(full, indent=2, default=str), encoding="utf-8")
 
     r = state.result
     print("=" * 70)

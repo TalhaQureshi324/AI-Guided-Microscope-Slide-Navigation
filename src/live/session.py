@@ -81,6 +81,10 @@ class LiveSession:
         self._raw_file = open(self.dir / "raw_frames_light.csv", "w", newline="", encoding="utf-8")
         self._raw = csv.DictWriter(self._raw_file, fieldnames=RAW_COLUMNS)
         self._raw.writeheader()
+        self._nav_file = open(self.dir / "nav_transitions.csv", "w", newline="", encoding="utf-8")
+        self._nav = csv.DictWriter(self._nav_file, fieldnames=[
+            "t_sec", "frame_idx", "x_px", "y_px", "from_state", "to_state", "score"])
+        self._nav.writeheader()
         self._lab_file = open(self.dir / "labels.csv", "w", newline="", encoding="utf-8")
         self._lab = csv.DictWriter(self._lab_file, fieldnames=[
             "label", "job_id", "frame_idx", "t_capture", "predicted_class", "score",
@@ -150,6 +154,16 @@ class LiveSession:
         if self.cfg.get("save_masks", False) and j.labels is not None:
             cv2.imwrite(str(self.dir / "masks" / f"job_{j.job_id:04d}.png"),
                         j.labels.astype(np.int32))
+
+    def log_nav_transition(self, tr) -> None:
+        """Monolayer enter/exit transitions with position (Phase 2/4 input)."""
+        self._nav.writerow({
+            "t_sec": round(tr.t, 3), "frame_idx": tr.frame_idx,
+            "x_px": round(tr.x, 1), "y_px": round(tr.y, 1),
+            "from_state": tr.from_state, "to_state": tr.to_state,
+            "score": round(tr.score, 4),
+        })
+        self._nav_file.flush()
 
     def save_scan_map(self, scan_map) -> None:
         """Persist the spatial survey (Phase 1) after every analyzed field."""
@@ -241,4 +255,8 @@ class LiveSession:
         self._acc_file.close()
         self._raw_file.close()
         self._lab_file.close()
+        self._nav_file.close()
+        summary["nav_transitions"] = [
+            {"from": tr["from_state"], "to": tr["to_state"]} for tr in state.nav_transitions
+        ]
         return summary

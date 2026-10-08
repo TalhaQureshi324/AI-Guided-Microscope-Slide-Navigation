@@ -87,6 +87,11 @@ class SharedState:
     # scan history: dicts(t, frame_idx, cum_x, cum_y, score, raw_class, stale)
     history: List[Dict] = field(default_factory=list)
 
+    # navigation state machine (Phase 2): fresh AUTO results only
+    nav_state: str = "OUTSIDE_MONOLAYER"
+    nav_score: Optional[float] = None
+    nav_transitions: List[Dict] = field(default_factory=list)
+
     # session bookkeeping
     session_dir: Optional[str] = None
     session_settings: Dict = field(default_factory=dict)

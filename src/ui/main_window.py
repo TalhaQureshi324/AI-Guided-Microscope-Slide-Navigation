@@ -73,7 +73,6 @@ class MainWindow(QMainWindow):
         self.ui_fps = 0.0
         self._ui_frames = 0
         self._ui_fps_t = time.perf_counter()
-        self._last_banner_state = False
         self._selected_job_id: Optional[int] = None   # job viewer selection
 
         self.setWindowTitle("AI-Guided Microscope Navigation - live perception")
@@ -122,12 +121,13 @@ class MainWindow(QMainWindow):
         self.viewport.setStyleSheet("background:#0a0a0a; border:1px solid #333;")
         left.addWidget(self.viewport, stretch=1)
 
-        self.banner = QLabel("")
+        # navigation state banner (Phase 2): driven ONLY by the hysteresis
+        # state machine over fresh multi-feature scores - never by one frame
+        self.banner = QLabel("OUTSIDE MONOLAYER")
         self.banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.banner.setVisible(False)
         self.banner.setStyleSheet(
-            "background:#1b5e20; color:#ffffff; font-size:20px; font-weight:bold;"
-            "padding:10px; border:2px solid #2e7d32;"
+            "background:#7f1d1d; color:#ffffff; font-size:18px; font-weight:bold;"
+            "padding:8px; border:2px solid #b91c1c;"
         )
         left.addWidget(self.banner)
         root.addLayout(left, stretch=1)
@@ -275,9 +275,6 @@ class MainWindow(QMainWindow):
         # ---- job viewer: a selected completed job owns the viewport ------
         viewing_job = self._selected_completed_job()
         if viewing_job is not None and viewing_job.frame is not None:
-            if self._last_banner_state:  # live banner must not leak into job view
-                self.banner.setVisible(False)
-                self._last_banner_state = False
             img = viewing_job.frame.copy()
             if snap["outlines_on"] and viewing_job.overlay_layer is not None:
                 img = cv2.bitwise_or(img, viewing_job.overlay_layer)
@@ -379,18 +376,6 @@ class MainWindow(QMainWindow):
         frame = draw_live_hud(frame, lines)
 
         self.viewport.setPixmap(QPixmap.fromImage(_np_to_qimage(frame)))
-
-        # banner state machine (stable smoothed MONOLAYER, non-stale only)
-        if monolayer_now != self._last_banner_state:
-            self._last_banner_state = monolayer_now
-            if monolayer_now and result is not None:
-                conf = result.smoothed_score if result.smoothed_score is not None else result.score
-                self.banner.setText(
-                    f"✓ MONOLAYER DETECTED    score {conf:.2f}   (experimental prototype)"
-                )
-                self.banner.setVisible(True)
-            else:
-                self.banner.setVisible(False)
 
         self._latest = {"snap": snap, "stale": stale, "age": result_age,
                         "frame": frame}
@@ -505,6 +490,7 @@ class MainWindow(QMainWindow):
             f"superseded auto: {self.jobmgr.superseded_auto if self.jobmgr else 0}"
             + (f"\n{jobs_txt}" if jobs_txt else "")
         )
+        self._update_nav_banner()
         self._refresh_job_list()
         if self.scan_map is not None:
             self.scan_map_panel.set_data(self.scan_map.fields(),
@@ -513,6 +499,26 @@ class MainWindow(QMainWindow):
             f"● {self.state_source} | capture {snap['capture_fps']:.1f} fps | "
             f"ui {self.ui_fps:.0f} fps | motion {snap['motion_state']} | "
             f"cellpose {cp} | analyses {snap['analysis_count']}"
+        )
+
+    NAV_BANNER = {
+        "OUTSIDE_MONOLAYER":   ("OUTSIDE MONOLAYER", "#7f1d1d", "#b91c1c"),
+        "ENTERING_MONOLAYER":  ("ENTERING MONOLAYER ...", "#92400e", "#f59e0b"),
+        "IN_MONOLAYER":        ("✓ CURRENTLY IN MONOLAYER", "#14532d", "#22c55e"),
+        "LEAVING_MONOLAYER":   ("⚠ LEAVING MONOLAYER", "#9a3412", "#f97316"),
+    }
+
+    def _update_nav_banner(self) -> None:
+        text, bg, border = self.NAV_BANNER.get(
+            self.state.nav_state,
+            ("OUTSIDE MONOLAYER", "#7f1d1d", "#b91c1c"))
+        score = self.state.nav_score
+        if score is not None:
+            text += f"    score {score:.2f}   (experimental)"
+        self.banner.setText(text)
+        self.banner.setStyleSheet(
+            f"background:{bg}; color:#ffffff; font-size:18px; font-weight:bold;"
+            f"padding:8px; border:2px solid {border};"
         )
 
     def _set(self, key: str, value) -> None:
@@ -586,6 +592,12 @@ class MainWindow(QMainWindow):
                 st.history.clear()
             if self.scan_map is not None:
                 self.scan_map.reset()
+            if self.nav_machine is not None:
+                self.nav_machine.reset()
+            with st.lock:
+                st.nav_state = "OUTSIDE_MONOLAYER"
+                st.nav_score = None
+                st.nav_transitions.clear()
         elif key == "g":
             with st.lock:
                 st.recording = not st.recording

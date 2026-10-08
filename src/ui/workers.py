@@ -442,7 +442,7 @@ class FeatureWorker(threading.Thread):
     def __init__(self, worker_id: str, state: SharedState, cfg: Dict,
                  jobmgr: JobManager, maskq: _MaskQueue, session=None,
                  smoother: Optional[TemporalSmoother] = None,
-                 scan_map=None) -> None:
+                 scan_map=None, nav_machine=None) -> None:
         super().__init__(name=worker_id, daemon=True)
         self.worker_id = worker_id
         self.state = state
@@ -451,6 +451,7 @@ class FeatureWorker(threading.Thread):
         self.maskq = maskq
         self.session = session
         self.scan_map = scan_map
+        self.nav_machine = nav_machine  # shared Phase 2 state machine
         self.smoother = smoother or TemporalSmoother(
             alpha=cfg.get("temporal_alpha", 0.4),
             window=cfg.get("temporal_window", 5),
@@ -562,6 +563,26 @@ class FeatureWorker(threading.Thread):
             self.scan_map.add_field(job, source_image=source_image)
             if self.session is not None:
                 self.session.save_scan_map(self.scan_map)
+
+        if job.priority == "AUTO" and not job.stale:
+            # navigation state machine: fresh AUTO results only (spec Phase 2)
+            if self.nav_machine is not None:
+                transitions_before = len(self.nav_machine.transitions)
+                view = self.nav_machine.update(
+                    smoothed_score if smoothed_score is not None else score,
+                    t=job.t_capture, frame_idx=job.frame_idx,
+                    x=job.cumulative_x, y=job.cumulative_y,
+                )
+                with st.lock:
+                    st.nav_state = view["state"]
+                    st.nav_score = view["score"]
+                    st.nav_transitions = self.nav_machine.transitions_as_dicts()
+                if len(self.nav_machine.transitions) > transitions_before:
+                    tr = self.nav_machine.transitions[-1]
+                    logger_a.info("NAV %s -> %s (score %.2f, f%d)",
+                                  tr.from_state, tr.to_state, tr.score, job.frame_idx)
+                    if self.session is not None:
+                        self.session.log_nav_transition(tr)
 
         if job.priority == "AUTO":
             st.publish_auto_result(job)
