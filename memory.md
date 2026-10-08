@@ -301,6 +301,20 @@ view() self-deadlock), leaving-count was reset instead of incremented
 CaptureWorker arg order. Untracked user sessions
 (live_session_20261001_*, live_p2_regression2) left for the user's commit.
 
+**Phase 3 - persistent monolayer highlighting (2026-10-07):** the scan map
+now carries a dedicated monolayer EVIDENCE layer on top of the intact
+per-field footprints. Each MONOLAYER field joins the layer; overlapping
+later fields either re-affirm (agreements) or contradict (disagreements)
+existing footprints, weighted double for human labels. Demotion requires
+>= 2 contradictions AND a majority - a single contradicting frame can never
+erase territory, and restoration requires exceeding evidence (a human label
+does it immediately). The panel draws the layer as a y-scanline RECTANGLE
+UNION (`union_rects`): overlapping green fields merge into one region with
+a single sampled outer boundary instead of dozens of rectangles. The live
+viewport's current-field green border remains separate. Config:
+`scan_map:` (contradictions_to_demote 2, overlap_min_fraction 0.25,
+human_label_weight 2).
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration

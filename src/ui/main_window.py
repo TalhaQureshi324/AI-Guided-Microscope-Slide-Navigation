@@ -493,7 +493,10 @@ class MainWindow(QMainWindow):
         self._update_nav_banner()
         self._refresh_job_list()
         if self.scan_map is not None:
-            self.scan_map_panel.set_data(self.scan_map.fields(),
+            mono_rects = [(f.x - f.w / 2, f.y - f.h / 2,
+                           f.x + f.w / 2, f.y + f.h / 2)
+                          for f in self.scan_map.active_monolayer_footprints()]
+            self.scan_map_panel.set_data(self.scan_map.fields(), mono_rects,
                                          self.state.current_net())
         self.statusBar().showMessage(
             f"● {self.state_source} | capture {snap['capture_fps']:.1f} fps | "

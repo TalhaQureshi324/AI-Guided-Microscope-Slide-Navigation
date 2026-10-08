@@ -129,6 +129,12 @@ manual_analysis:
   detailed_features: true      # manual captures always get the full treatment
   merge_analysis: true         # incl. DT merge suspects (orange outlines)
 
+# ---- persistent monolayer layer (Phase 3) ------------------------------------
+scan_map:
+  contradictions_to_demote: 2   # conservative: repeated majority contradictions
+  overlap_min_fraction: 0.25    # meaningful overlap with an existing footprint
+  human_label_weight: 2         # operator evidence counts double
+
 # ---- navigation state machine (Phase 2) --------------------------------------
 # Experimental prototype values - enter must be ABOVE exit (hysteresis) so
 # the GUI cannot flicker between states. Count is never an input: the

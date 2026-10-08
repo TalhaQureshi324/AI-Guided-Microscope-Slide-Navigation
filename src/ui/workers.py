@@ -557,10 +557,18 @@ class FeatureWorker(threading.Thread):
         job.t_end = time.perf_counter()
         self.jobmgr.mark(job, COMPLETE, self.worker_id)
 
-        # ---- persistent scan map (Phase 1): store this field's footprint
+        # ---- persistent scan map (Phase 1) + monolayer evidence layer (Phase 3)
         if self.scan_map is not None and job.score is not None:
             source_image = f"keyframes/job_{job.job_id:04d}_f{job.frame_idx:06d}.jpg"
             self.scan_map.add_field(job, source_image=source_image)
+            ml_summary = self.scan_map.update_monolayer_layer(
+                job,
+                contradictions_to_demote=self.cfg.get("contradictions_to_demote", 2),
+                overlap_min_fraction=self.cfg.get("overlap_min_fraction", 0.25),
+                human_label_weight=self.cfg.get("human_label_weight", 2),
+            )
+            if any(ml_summary.values()):
+                logger_a.info("monolayer layer: %s", ml_summary)
             if self.session is not None:
                 self.session.save_scan_map(self.scan_map)
 

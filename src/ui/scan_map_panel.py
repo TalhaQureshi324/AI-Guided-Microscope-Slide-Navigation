@@ -26,7 +26,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QWidget
 
-from src.live.scan_map import CLASS_COLORS, FieldFootprint
+from src.live.scan_map import CLASS_COLORS, FieldFootprint, point_in_any, union_rects
 
 
 class ScanMapPanel(QWidget):
@@ -35,12 +35,17 @@ class ScanMapPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._fields: List[FieldFootprint] = []
+        self._mono_rects: List[Tuple[float, float, float, float]] = []
         self._current: Optional[Tuple[float, float]] = None
         self.setMinimumHeight(220)
 
     def set_data(self, fields: List[FieldFootprint],
+                 monolayer_rects: List[Tuple[float, float, float, float]],
                  current_pos: Optional[Tuple[float, float]]) -> None:
+        """monolayer_rects = ACTIVE monolayer footprints (x0,y0,x1,y1) in scan
+        coordinates; the widget merges them into one visual region (Phase 3)."""
         self._fields = fields
+        self._mono_rects = list(monolayer_rects)
         self._current = current_pos
         self.update()
 
@@ -58,11 +63,12 @@ class ScanMapPanel(QWidget):
 
         extra = [self._current] if self._current else []
         fields = self._fields
-        if fields:
-            xs0 = [f.x - f.w / 2 for f in fields]
-            ys0 = [f.y - f.h / 2 for f in fields]
-            xs1 = [f.x + f.w / 2 for f in fields]
-            ys1 = [f.y + f.h / 2 for f in fields]
+        mono = self._mono_rects
+        if fields or mono:
+            xs0 = [f.x - f.w / 2 for f in fields] + [r[0] for r in mono]
+            ys0 = [f.y - f.h / 2 for f in fields] + [r[1] for r in mono]
+            xs1 = [f.x + f.w / 2 for f in fields] + [r[2] for r in mono]
+            ys1 = [f.y + f.h / 2 for f in fields] + [r[3] for r in mono]
             for px, py in extra:
                 xs0.append(px); ys0.append(py); xs1.append(px); ys1.append(py)
             min_x, min_y = min(xs0), min(ys0)
@@ -74,10 +80,40 @@ class ScanMapPanel(QWidget):
                 return (8 + (x - min_x) * scale,
                         30 + (y - min_y) * scale)
 
-            # footprints (rectangles, not dots - neighbouring fields overlap)
+            # ---- persistent monolayer layer: merged union, one boundary ----
+            if mono:
+                union = union_rects([(r[0], r[1], r[2], r[3]) for r in mono])
+                fill = QColor("#2e7d32"); fill.setAlpha(120)
+                for ux0, uy0, ux1, uy1 in union:
+                    ux0p, uy0p = to_px(ux0, uy0)
+                    ux1p, uy1p = to_px(ux1, uy1)
+                    p.fillRect(int(ux0p), int(uy0p),
+                               max(2, int(ux1p - ux0p)), max(2, int(uy1p - uy0p)), fill)
+                # outer boundary only: sample just outside each candidate edge
+                p.setPen(QPen(QColor(40, 167, 69), 2))
+                eps = max(span_x, span_y) * 0.004
+                for ux0, uy0, ux1, uy1 in union:
+                    step_x = max(eps, (ux1 - ux0) / 24.0)
+                    step_y = max(eps, (uy1 - uy0) / 24.0)
+                    xs = [ux0 + i * step_x for i in range(25)] + [ux1]
+                    ys = [uy0 + i * step_y for i in range(25)] + [uy1]
+                    for x in xs:  # top/bottom edges
+                        for (ex, ey) in ((x, uy0 - eps), (x, uy1 + eps)):
+                            if not point_in_any(ex, ey, union):
+                                a = to_px(ex, min(max(uy0, ey - eps), uy1))
+                                b = to_px(ex, max(min(uy1, ey + eps), uy0))
+                                p.drawLine(int(a[0]), int(a[1]), int(b[0]), int(b[1]))
+                    for y in ys:  # left/right edges
+                        for (ex, ey) in ((ux0 - eps, y), (ux1 + eps, y)):
+                            if not point_in_any(ex, ey, union):
+                                a = to_px(min(max(ux0, ex - eps), ux1), ey)
+                                b = to_px(max(min(ux1, ex + eps), ux0), ey)
+                                p.drawLine(int(a[0]), int(a[1]), int(b[0]), int(b[1]))
+
+            # ---- per-field footprints (thin outlines, human ticks) ----
             for f in fields:
                 colour = QColor(CLASS_COLORS.get(f.raw_class, "#888888"))
-                alpha = 235 if f.raw_class == "MONOLAYER" else 130
+                alpha = 90 if f.raw_class == "MONOLAYER" else 130
                 colour.setAlpha(alpha)
                 x0, y0 = to_px(f.x - f.w / 2, f.y - f.h / 2)
                 x1, y1 = to_px(f.x + f.w / 2, f.y + f.h / 2)
