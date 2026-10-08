@@ -112,6 +112,15 @@ class MainWindow(QMainWindow):
         self.btn_snapshot.setToolTip("Save the current frame WITHOUT Cellpose")
         self.btn_snapshot.clicked.connect(self._on_snapshot)
         controls.addWidget(self.btn_snapshot)
+
+        self.btn_sweep = QPushButton("START NEW SWEEP")
+        self.btn_sweep.setStyleSheet("padding:8px 12px;")
+        self.btn_sweep.setToolTip(
+            "Begin a new sweep trajectory on the SAME slide map. If a completed "
+            "job is selected in the list, the new sweep is anchored to that "
+            "field's location (position the microscope there first).")
+        self.btn_sweep.clicked.connect(self._on_new_sweep)
+        controls.addWidget(self.btn_sweep)
         controls.addStretch(1)
         left.addLayout(controls)
 
@@ -266,6 +275,25 @@ class MainWindow(QMainWindow):
         with self.state.lock:
             self.state.snapshot_requests += 1
         self.statusBar().showMessage("snapshot will be saved (no Cellpose)", 2000)
+
+    def _on_new_sweep(self):
+        """Phase 6: begin a new sweep trajectory, keeping the same slide map.
+
+        Anchored to the selected completed job when one is chosen (the
+        operator declares the microscope is at that field's location)."""
+        if self.scan_map is None:
+            return
+        job = self._selected_completed_job()
+        anchor = job.job_id if job is not None else None
+        net_x, net_y = self.state.current_net()
+        sweep = self.scan_map.start_sweep(time.perf_counter(), net_x, net_y,
+                                          anchor_job_id=anchor)
+        if sweep is not None:
+            self.statusBar().showMessage(
+                f"sweep #{sweep['sweep_id']} started at map "
+                f"({sweep['start_x']:.0f}, {sweep['start_y']:.0f})"
+                + (f", anchored to job #{anchor}" if anchor else ""),
+                4000)
 
     def _on_job_selected(self, item):
         job_id = item.data(Qt.ItemDataRole.UserRole)
@@ -518,9 +546,19 @@ class MainWindow(QMainWindow):
                 close_cells=int(self.cfg.get("boundary_close_cells", 2)),
                 min_region_cells=int(self.cfg.get("boundary_min_region_cells", 4)),
             )
-            self.scan_map_panel.set_data(self.scan_map.fields(), mono_rects,
-                                         self.state.current_net(),
-                                         boundary_version=b_ver, boundary=boundary)
+            # Phase 6: per-sweep trajectories (fields ordered by capture time)
+            trails: Dict[int, list] = {}
+            for fp in self.scan_map.fields():
+                trails.setdefault(fp.sweep_id, []).append(
+                    (fp.t_capture, fp.x, fp.y))
+            sweep_trails = [
+                [(x, y) for _, x, y in sorted(trail)] for trail in trails.values()
+            ]
+            self.scan_map_panel.set_data(
+                self.scan_map.fields(), mono_rects,
+                self.state.current_net(),
+                boundary_version=b_ver, boundary=boundary,
+                sweeps=self.scan_map.sweeps(), sweep_trails=sweep_trails)
         self.statusBar().showMessage(
             f"● {self.state_source} | capture {snap['capture_fps']:.1f} fps | "
             f"ui {self.ui_fps:.0f} fps | motion {snap['motion_state']} | "

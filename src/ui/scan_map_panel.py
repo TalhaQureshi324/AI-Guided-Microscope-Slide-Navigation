@@ -34,6 +34,8 @@ class ScanMapPanel(QWidget):
         self._boundary: List[List[Tuple[float, float]]] = []
         self._boundary_version: Optional[int] = None
         self._current: Optional[Tuple[float, float]] = None
+        self._sweeps: List[dict] = []
+        self._sweep_trails: List[List[Tuple[float, float]]] = []
         self._has_content = False
 
         # explicit view transform state (Phase 5)
@@ -108,12 +110,16 @@ class ScanMapPanel(QWidget):
                  monolayer_rects: List[Tuple[float, float, float, float]],
                  current_pos: Optional[Tuple[float, float]],
                  boundary_version: Optional[int] = None,
-                 boundary: Optional[List[List[Tuple[float, float]]]] = None) -> None:
+                 boundary: Optional[List[List[Tuple[float, float]]]] = None,
+                 sweeps: Optional[List[dict]] = None,
+                 sweep_trails: Optional[List[List[Tuple[float, float]]]] = None) -> None:
         """monolayer_rects = ACTIVE monolayer footprints (x0,y0,x1,y1) in scan
         coordinates; boundary = outer contour(s) of the accumulated monolayer
-        region in scan coordinates (Phase 4)."""
+        region (Phase 4); sweeps/trails = multi-sweep trajectories (Phase 6)."""
         self._fields = fields
         self._mono_rects = list(monolayer_rects)
+        self._sweeps = sweeps or []
+        self._sweep_trails = sweep_trails or []
         if boundary is not None and boundary_version != self._boundary_version:
             self._boundary = boundary
             self._boundary_version = boundary_version
@@ -149,6 +155,10 @@ class ScanMapPanel(QWidget):
             for pt in contour:
                 xs0.append(pt[0]); ys0.append(pt[1])
                 xs1.append(pt[0]); ys1.append(pt[1])
+        for trail in self._sweep_trails:
+            for pt in trail:
+                xs0.append(pt[0]); ys0.append(pt[1])
+                xs1.append(pt[0]); ys1.append(pt[1])
         if self._current:
             xs0.append(self._current[0]); ys0.append(self._current[1])
             xs1.append(self._current[0]); ys1.append(self._current[1])
@@ -162,6 +172,20 @@ class ScanMapPanel(QWidget):
 
         def to_px(x, y):
             return self.to_widget_px(x, y)
+
+        # ---- Phase 6: sweep trajectories (faint polylines + start markers) ----
+        for si, trail in enumerate(self._sweep_trails, start=1):
+            if len(trail) >= 2:
+                p.setPen(QPen(QColor(120, 120, 150), 1, Qt.PenStyle.DashLine))
+                pts_px = [to_px(x, y) for x, y in trail]
+                for (ax, ay), (bx, by) in zip(pts_px, pts_px[1:]):
+                    p.drawLine(int(ax), int(ay), int(bx), int(by))
+        for sw in self._sweeps:
+            sx, sy = to_px(sw["start_x"], sw["start_y"])
+            p.setPen(QPen(QColor(200, 200, 255), 1))
+            p.setBrush(QColor(60, 60, 110))
+            p.drawEllipse(int(sx) - 7, int(sy) - 7, 14, 14)
+            p.drawText(int(sx) - 3, int(sy) + 4, str(sw.get("sweep_id", "?")))
 
         # ---- persistent monolayer layer: merged union, one boundary ----
         if mono:

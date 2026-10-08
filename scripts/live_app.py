@@ -166,7 +166,8 @@ def main() -> int:
         session = LiveSession(session_dir, cfg, cfg["source"], settings={})
         state.session_dir = str(session_dir)
         state.source_label = source.name
-        capture = CaptureWorker(source, state, controller, cfg, jobmgr, session=session)
+        capture = CaptureWorker(source, state, controller, cfg, jobmgr,
+                                session=session, scan_map=scan_map)
         _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
                                                       scan_map=scan_map, nav_machine=nav)
         if cfg.get("record_enabled"):
@@ -234,7 +235,8 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
     session = LiveSession(session_dir, cfg, cfg["source"], settings={})
     state.session_dir = str(session_dir)
     state.source_label = source.name
-    capture = CaptureWorker(source, state, controller, cfg, jobmgr, session=session)
+    capture = CaptureWorker(source, state, controller, cfg, jobmgr,
+                            session=session, scan_map=scan_map)
     _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
                                                   scan_map=scan_map, nav_machine=nav)
     t0 = time.perf_counter()

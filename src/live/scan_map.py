@@ -57,6 +57,7 @@ class FieldFootprint:
     ml_agreements: int = 0               # overlapping later MONOLAYER fields
     ml_disagreements: int = 0            # overlapping later contradicting fields
     ml_demoted: bool = False             # removed from the active green layer
+    sweep_id: int = 0                    # which sweep trajectory captured this
 
 
 class ScanMap:
@@ -68,6 +69,72 @@ class ScanMap:
         self._by_job: Dict[int, FieldFootprint] = {}
         self._version = 0                 # bumps on every survey change
         self._boundary_cache: Dict[tuple, tuple] = {}
+        # Phase 6: multi-sweep trajectories in ONE map coordinate system
+        self._sweeps: List[Dict] = []     # Sweep dicts (id, direction, start...)
+        self._current_sweep: Optional[Dict] = None
+        self._sweep_offset: Tuple[float, float] = (0.0, 0.0)
+
+    # ------------------------------------------------------------------
+    # Phase 6: multi-sweep trajectories (same map, anchored new sweeps)
+    # ------------------------------------------------------------------
+    def start_sweep(self, t: float, current_x: float, current_y: float,
+                    anchor_job_id: Optional[int] = None) -> Optional[Dict]:
+        """Begin a new sweep trajectory on the SAME map.
+
+        The new sweep's starting position equals the current live position
+        (no offset - the stage physically continued). If ``anchor_job_id`` is
+        given, the operator declares "the microscope is now at that field's
+        location": the sweep origin is offset so subsequent positions land
+        correctly in the existing map. The monolayer layer is NEVER reset.
+        """
+        with self._lock:
+            offset = (0.0, 0.0)
+            if anchor_job_id is not None:
+                fp = self._by_job.get(anchor_job_id)
+                if fp is not None:
+                    offset = (fp.x - current_x, fp.y - current_y)
+            self._sweep_offset = offset
+            sweep = {
+                "sweep_id": len(self._sweeps) + 1,
+                "started_at": t,
+                "direction": "-",
+                "start_x": round(current_x + offset[0], 1),
+                "start_y": round(current_y + offset[1], 1),
+                "anchor_job_id": anchor_job_id,
+                "n_fields": 0,
+            }
+            self._sweeps.append(sweep)
+            self._current_sweep = sweep
+            self._version += 1
+            return sweep
+
+    def current_offset(self) -> Tuple[float, float]:
+        with self._lock:
+            return self._sweep_offset
+
+    def sweeps(self) -> List[Dict]:
+        with self._lock:
+            return [dict(sw) for sw in self._sweeps]
+
+    def _note_field_for_sweep(self, job) -> None:
+        """Attach the field to the current sweep + auto-detect direction."""
+        sweep = self._current_sweep
+        if sweep is None:
+            sweep = {"sweep_id": 0, "started_at": job.t_capture, "direction": "-",
+                     "start_x": round(job.map_x, 1), "start_y": round(job.map_y, 1),
+                     "anchor_job_id": None, "n_fields": 0}
+            self._sweeps.append(sweep)
+            self._current_sweep = sweep
+        sweep["n_fields"] += 1
+        mx = getattr(job, "map_x", job.cumulative_x)
+        my = getattr(job, "map_y", job.cumulative_y)
+        prev = sweep.get("_last")
+        if prev is not None:
+            dx, dy = mx - prev[0], my - prev[1]
+            if math.hypot(dx, dy) > 10:  # ignore jitter
+                sweep["direction"] = ("horizontal" if abs(dx) >= abs(dy)
+                                      else "vertical")
+        sweep["_last"] = (mx, my)
 
     # ------------------------------------------------------------------
     def add_field(self, job, source_image: str = "") -> Optional[FieldFootprint]:
@@ -80,11 +147,13 @@ class ScanMap:
         if job.labels is None or job.score is None:
             return None
         h, w = job.labels.shape[:2]
+        self._note_field_for_sweep(job)
+        current_sweep_id = (self._current_sweep or {}).get("sweep_id", 0)
         fp = FieldFootprint(
             job_id=job.job_id,
             t_capture=job.t_capture,
-            x=float(job.cumulative_x),
-            y=float(job.cumulative_y),
+            x=float(getattr(job, "map_x", job.cumulative_x)),
+            y=float(getattr(job, "map_y", job.cumulative_y)),
             w=float(w),
             h=float(h),
             score=float(job.score),
@@ -93,6 +162,7 @@ class ScanMap:
             frame_idx=job.frame_idx,
             source_image=source_image,
             human_label=job.human_label,
+            sweep_id=current_sweep_id,
         )
         with self._lock:
             self._fields.append(fp)
@@ -299,10 +369,13 @@ class ScanMap:
         return version, contours_scan
 
     def reset(self) -> None:
-        """Reset Scan (hotkey R) clears the whole survey."""
+        """Reset Scan (hotkey R) clears the whole survey INCLUDING sweeps."""
         with self._lock:
             self._fields.clear()
             self._by_job.clear()
+            self._sweeps.clear()
+            self._current_sweep = None
+            self._sweep_offset = (0.0, 0.0)
             self._version += 1
             self._boundary_cache.clear()
 
@@ -331,6 +404,9 @@ class ScanMap:
                 "coordinate_system": "cumulative_image_registration (net dx, dy, px)",
                 "saved_at": time.time(),
                 "fields": [asdict(f) for f in self._fields],
+                "sweeps": [dict(sw) for sw in self._sweeps],
+                "sweep_offset": list(self._sweep_offset),
+                "current_sweep_id": (self._current_sweep or {}).get("sweep_id"),
             }
         Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")
 
@@ -343,6 +419,12 @@ class ScanMap:
             with m._lock:
                 m._fields.append(fp)
                 m._by_job[fp.job_id] = fp
+        m._sweeps = list(data.get("sweeps", []))
+        off = data.get("sweep_offset", [0.0, 0.0])
+        m._sweep_offset = (off[0], off[1])
+        cur = data.get("current_sweep_id")
+        m._current_sweep = next((sw for sw in m._sweeps
+                                 if sw.get("sweep_id") == cur), None)
         return m
 
 

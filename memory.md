@@ -341,6 +341,19 @@ the whole view consistently. Composition lesson: with pan applied after
 zoom, zooming simply scales the existing pan (p' = p*ratio) - the
 cursor-style formula double-counted.
 
+**Phase 6 - multi-sweep reconstruction (2026-10-07):** START NEW SWEEP
+button begins a new trajectory on the SAME map; if a completed job is
+selected it ANCHORS the new sweep to that field's location (offset = anchor
+map pos - current raw position), so sweep-2 fields land correctly in the
+sweep-1 frame without rewriting the coordinate system. `ScanMap` stores
+sweep records (id, direction auto-detected from dominant motion, start
+position, anchor job, n_fields) plus per-field sweep_id; footprints carry
+map_x/map_y; the panel draws per-sweep dashed trajectories + numbered start
+markers under the territory layers. Monolayer layer/boundary are NEVER
+reset between sweeps - they accumulate across sweeps. All of it persists
+in scan_map.json and dies only with Reset Scan. Stage-coordinate
+replacement later = swap the offset/position source in ScanMap only.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration

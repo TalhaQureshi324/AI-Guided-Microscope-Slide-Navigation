@@ -71,7 +71,7 @@ _MOTION_WIDTH = 480
 
 class CaptureWorker(threading.Thread):
     def __init__(self, source, state: SharedState, controller: LiveFieldController,
-                 cfg: Dict, jobmgr: JobManager, session=None) -> None:
+                 cfg: Dict, jobmgr: JobManager, session=None, scan_map=None) -> None:
         super().__init__(name="capture", daemon=True)
         self.source = source
         self.state = state
@@ -79,6 +79,7 @@ class CaptureWorker(threading.Thread):
         self.cfg = cfg
         self.jobmgr = jobmgr
         self.session = session
+        self.scan_map = scan_map
         self.motion = MotionEstimator(_MOTION_WIDTH)
         self.screen = FastScreen(
             work_width=cfg.get("fast_screen_work_width", 480),
@@ -250,6 +251,8 @@ class CaptureWorker(threading.Thread):
 
         # ---- job submission (spec §2/§3/§8) ------------------------------
         cx, cy, ct = self.controller.cumulative
+        off_x, off_y = (self.scan_map.current_offset()
+                        if self.scan_map is not None else (0.0, 0.0))
         base_meta = dict(
             cumulative_x=cx, cumulative_y=cy, cumulative_total=ct,
             screen_result=screen["fast_screen_result"],
@@ -266,8 +269,9 @@ class CaptureWorker(threading.Thread):
             return
 
         if force:
-            job = self.jobmgr.submit("FORCED", frame, seq, t_src,
-                                     reason="FORCED_A", **base_meta)
+            job = self.jobmgr.submit(
+                "FORCED", frame, seq, t_src, map_x=cx + off_x, map_y=cy + off_y,
+                reason="FORCED_A", **base_meta)
             if job is not None:
                 logger.info("forced job #%d queued (f%d)", job.job_id, seq)
             return
@@ -277,8 +281,9 @@ class CaptureWorker(threading.Thread):
             hybrid = self.cfg.get("cellpose_mode", "benchmark") == "hybrid"
             if hybrid and screen["fast_screen_result"] != "UNCERTAIN":
                 return  # Mode B: screening already decided - skip inference
-            job = self.jobmgr.submit("AUTO", frame, seq, t_src,
-                                     reason=decision.request_reason, **base_meta)
+            job = self.jobmgr.submit(
+                "AUTO", frame, seq, t_src, map_x=cx + off_x, map_y=cy + off_y,
+                reason=decision.request_reason, **base_meta)
             if job is not None:
                 logger.debug("auto job #%d queued (f%d, %s)",
                              job.job_id, seq, decision.request_reason)
