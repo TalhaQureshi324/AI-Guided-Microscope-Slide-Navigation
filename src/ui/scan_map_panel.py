@@ -1,21 +1,16 @@
-"""Persistent scan-map panel (Phase 1).
+"""Persistent scan-map panel with an explicit view transform (Phase 5).
 
-Draws every analyzed field as its spatial FOOTPRINT rectangle on the
-persistent scan-coordinate canvas - the map remembers all previously
-analyzed fields even after the live camera moves away, for the whole
-session until Reset Scan.
+ALL geometry (field footprints, the merged monolayer layer, the boundary
+contour, the live position crosshair) is stored in SCAN/WORLD coordinates.
+Rendering passes through ONE explicit transform:
 
-  * class colours: TOO_THICK red, MONOLAYER green, TOO_THIN blue,
-    UNCERTAIN amber (visualization only, never logic);
-  * monolayer footprints get a slightly stronger fill so the (future)
-    connected band is already visible when several green fields neighbour;
-  * human-labeled fields get a white corner tick;
-  * the current live scan position is a cyan crosshair.
+    widget_px = center + (fit_px(scan) - center) * user_zoom + pan
 
-The panel is independent of the live camera viewport. Auto-fits its
-transform to the data, so negative coordinates and any sweep direction
-work. Zoom/scale independence and band-boundary extraction are later
-phases; this widget only proves placement + persistence.
+so zoom and pan are pure rendering - the stored monolayer geometry never
+touches screen pixels, and every zoom level (25%/50%/100%/200%...) shows the
+exact same region, aligned (spec Phase 5). Wheel zooms, left-drag pans,
+Reset View restores the default fit; Reset Scan (R) remains the only action
+that deletes the survey.
 """
 
 from __future__ import annotations
@@ -39,8 +34,76 @@ class ScanMapPanel(QWidget):
         self._boundary: List[List[Tuple[float, float]]] = []
         self._boundary_version: Optional[int] = None
         self._current: Optional[Tuple[float, float]] = None
+        self._has_content = False
+
+        # explicit view transform state (Phase 5)
+        self._fit: Optional[Tuple[float, float, float]] = None  # (min_x, min_y, scale)
+        self._user_zoom: float = 1.0
+        self._pan: Tuple[float, float] = (0.0, 0.0)  # widget px
+        self._drag_last: Optional[Tuple[float, float]] = None
         self.setMinimumHeight(220)
 
+    # -------------------------------------------------------------- view
+    def reset_view(self) -> None:
+        """Reset zoom/pan to the default fit - scan data untouched."""
+        self._user_zoom = 1.0
+        self._pan = (0.0, 0.0)
+        self.update()
+
+    def zoom_by(self, factor: float) -> None:
+        """Zoom about the widget centre; factor > 1 magnifies."""
+        self._set_zoom(self._user_zoom * factor)
+
+    def _set_zoom(self, new_zoom: float) -> None:
+        new_zoom = max(0.25, min(8.0, new_zoom))
+        w, h = self.width(), self.height()
+        cx, cy = w / 2.0, h / 2.0
+        ratio = new_zoom / max(1e-9, self._user_zoom)
+        px, py = self._pan
+        # keep the centre point stable while zooming
+        # widget = centre + (fit - centre)*zoom + pan  (pan applied AFTER zoom)
+        # => a zoom by `ratio` about the centre simply scales the pan too
+        self._pan = (self._pan[0] * ratio, self._pan[1] * ratio)
+        self._user_zoom = new_zoom
+        self.update()
+
+    def to_widget_px(self, x: float, y: float) -> Tuple[float, float]:
+        """The single explicit transform: scan coordinates -> widget pixels."""
+        fx, fy = self._fit_to_widget(x, y)
+        cx, cy = self.width() / 2.0, self.height() / 2.0
+        return (cx + (fx - cx) * self._user_zoom + self._pan[0],
+                cy + (fy - cy) * self._user_zoom + self._pan[1])
+
+    def _fit_to_widget(self, x: float, y: float) -> Tuple[float, float]:
+        if self._fit is None:
+            return (x, y)
+        mcx, mcy, scale = self._fit
+        return (self.width() / 2.0 + (x - mcx) * scale,
+                self.height() / 2.0 + (y - mcy) * scale)
+
+    # ------------------------------------------------------------ events
+    def wheelEvent(self, ev):  # noqa: N802 (Qt naming)
+        delta = ev.angleDelta().y()
+        if delta:
+            self._set_zoom(self._user_zoom * (1.2 if delta > 0 else 1 / 1.2))
+
+    def mousePressEvent(self, ev):  # noqa: N802
+        if ev.button() == Qt.MouseButton.LeftButton:
+            self._drag_last = (ev.position().x(), ev.position().y())
+
+    def mouseMoveEvent(self, ev):  # noqa: N802
+        last = self._drag_last
+        if last is not None and ev.buttons() & Qt.MouseButton.LeftButton:
+            dx = ev.position().x() - last[0]
+            dy = ev.position().y() - last[1]
+            self._pan = (self._pan[0] + dx, self._pan[1] + dy)
+            self._drag_last = (ev.position().x(), ev.position().y())
+            self.update()
+
+    def mouseReleaseEvent(self, ev):  # noqa: N802
+        self._drag_last = None
+
+    # -------------------------------------------------------------- data
     def set_data(self, fields: List[FieldFootprint],
                  monolayer_rects: List[Tuple[float, float, float, float]],
                  current_pos: Optional[Tuple[float, float]],
@@ -48,103 +111,107 @@ class ScanMapPanel(QWidget):
                  boundary: Optional[List[List[Tuple[float, float]]]] = None) -> None:
         """monolayer_rects = ACTIVE monolayer footprints (x0,y0,x1,y1) in scan
         coordinates; boundary = outer contour(s) of the accumulated monolayer
-        region in scan coordinates (Phase 4), tagged with its map version so
-        it is only refreshed when the survey changed."""
+        region in scan coordinates (Phase 4)."""
         self._fields = fields
         self._mono_rects = list(monolayer_rects)
         if boundary is not None and boundary_version != self._boundary_version:
             self._boundary = boundary
             self._boundary_version = boundary_version
         self._current = current_pos
+        self._has_content = bool(fields or mono_rects or self._boundary or current_pos)
         self.update()
 
+    # -------------------------------------------------------------- paint
     def paintEvent(self, ev):  # noqa: N802 (Qt naming)
         p = QPainter(self)
         p.fillRect(self.rect(), QColor(16, 16, 16))
         p.setPen(QPen(QColor(120, 120, 120), 1))
-        p.drawText(6, 14, "SCAN MAP - analyzed field footprints "
-                         "(persists until Reset Scan)")
+        p.drawText(6, 14, f"SCAN MAP - view {self._user_zoom * 100:.0f}% "
+                          f"(wheel zoom, drag pan)")
+        w, h = self.width(), self.height()  # full widget: fit is size-proportional
 
-        w, h = self.width() - 16, self.height() - 40
-        if w <= 10 or h <= 10:
+        mono = self._mono_rects
+        fields = self._fields
+        if not (self._has_content and w > 10 and h > 10):
+            if not fields:
+                p.setPen(QPen(QColor(140, 140, 140), 1))
+                p.drawText(8, self.height() // 2,
+                           "analyze fields (CAPTURE or Auto) to build the survey map")
             p.end()
             return
 
-        extra = [self._current] if self._current else []
-        fields = self._fields
-        mono = self._mono_rects
-        if fields or mono:
-            xs0 = [f.x - f.w / 2 for f in fields] + [r[0] for r in mono]
-            ys0 = [f.y - f.h / 2 for f in fields] + [r[1] for r in mono]
-            xs1 = [f.x + f.w / 2 for f in fields] + [r[2] for r in mono]
-            ys1 = [f.y + f.h / 2 for f in fields] + [r[3] for r in mono]
-            for contour in self._boundary:
-                for pt in contour:
-                    xs0.append(pt[0]); ys0.append(pt[1])
-                    xs1.append(pt[0]); ys1.append(pt[1])
-            for px, py in extra:
-                xs0.append(px); ys0.append(py); xs1.append(px); ys1.append(py)
-            min_x, min_y = min(xs0), min(ys0)
-            span_x = max(1.0, max(xs1) - min_x)
-            span_y = max(1.0, max(ys1) - min_y)
-            scale = min(w / span_x, h / span_y)
+        # ---- fit transform over all content (fields + layer + boundary) ----
+        xs0 = [f.x - f.w / 2 for f in fields] + [r[0] for r in mono]
+        ys0 = [f.y - f.h / 2 for f in fields] + [r[1] for r in mono]
+        xs1 = [f.x + f.w / 2 for f in fields] + [r[2] for r in mono]
+        ys1 = [f.y + f.h / 2 for f in fields] + [r[3] for r in mono]
+        for contour in self._boundary:
+            for pt in contour:
+                xs0.append(pt[0]); ys0.append(pt[1])
+                xs1.append(pt[0]); ys1.append(pt[1])
+        if self._current:
+            xs0.append(self._current[0]); ys0.append(self._current[1])
+            xs1.append(self._current[0]); ys1.append(self._current[1])
+        min_x, min_y = min(xs0), min(ys0)
+        span_x = max(1.0, max(xs1) - min_x)
+        span_y = max(1.0, max(ys1) - min_y)
+        scale = min(w / span_x, h / span_y)
+        # CENTER-anchored fit: scan bbox centre -> widget centre, so the
+        # zoom anchor (widget centre) is a pure scale of the fit (Phase 5)
+        self._fit = ((min_x + max(xs1)) / 2.0, (min_y + max(ys1)) / 2.0, scale)
 
-            def to_px(x, y):
-                return (8 + (x - min_x) * scale,
-                        30 + (y - min_y) * scale)
+        def to_px(x, y):
+            return self.to_widget_px(x, y)
 
-            # ---- persistent monolayer layer: merged union, one boundary ----
-            if mono:
-                union = union_rects([(r[0], r[1], r[2], r[3]) for r in mono])
-                fill = QColor("#2e7d32"); fill.setAlpha(120)
-                for ux0, uy0, ux1, uy1 in union:
-                    ux0p, uy0p = to_px(ux0, uy0)
-                    ux1p, uy1p = to_px(ux1, uy1)
-                    p.fillRect(int(ux0p), int(uy0p),
-                               max(2, int(ux1p - ux0p)), max(2, int(uy1p - uy0p)), fill)
-                # outer boundary only: sample just outside each candidate edge
-                p.setPen(QPen(QColor(40, 167, 69), 2))
-                eps = max(span_x, span_y) * 0.004
-                for ux0, uy0, ux1, uy1 in union:
-                    step_x = max(eps, (ux1 - ux0) / 24.0)
-                    step_y = max(eps, (uy1 - uy0) / 24.0)
-                    xs = [ux0 + i * step_x for i in range(25)] + [ux1]
-                    ys = [uy0 + i * step_y for i in range(25)] + [uy1]
-                    for x in xs:  # top/bottom edges
-                        for (ex, ey) in ((x, uy0 - eps), (x, uy1 + eps)):
-                            if not point_in_any(ex, ey, union):
-                                a = to_px(ex, min(max(uy0, ey - eps), uy1))
-                                b = to_px(ex, max(min(uy1, ey + eps), uy0))
-                                p.drawLine(int(a[0]), int(a[1]), int(b[0]), int(b[1]))
-                    for y in ys:  # left/right edges
-                        for (ex, ey) in ((ux0 - eps, y), (ux1 + eps, y)):
-                            if not point_in_any(ex, ey, union):
-                                a = to_px(min(max(ux0, ex - eps), ux1), ey)
-                                b = to_px(max(min(ux1, ex + eps), ux0), ey)
-                                p.drawLine(int(a[0]), int(a[1]), int(b[0]), int(b[1]))
+        # ---- persistent monolayer layer: merged union, one boundary ----
+        if mono:
+            union = union_rects([(r[0], r[1], r[2], r[3]) for r in mono])
+            fill = QColor("#2e7d32"); fill.setAlpha(120)
+            for ux0, uy0, ux1, uy1 in union:
+                ux0p, uy0p = to_px(ux0, uy0)
+                ux1p, uy1p = to_px(ux1, uy1)
+                p.fillRect(int(ux0p), int(uy0p),
+                           max(2, int(ux1p - ux0p)), max(2, int(uy1p - uy0p)), fill)
+            p.setPen(QPen(QColor(40, 167, 69), 2))
+            span = max(span_x, span_y)
+            eps = span * 0.004
+            for ux0, uy0, ux1, uy1 in union:
+                step_x = max(eps, (ux1 - ux0) / 24.0)
+                step_y = max(eps, (uy1 - uy0) / 24.0)
+                xs = [ux0 + i * step_x for i in range(25)] + [ux1]
+                ys = [uy0 + i * step_y for i in range(25)] + [uy1]
+                for x in xs:
+                    for (ex, ey) in ((x, uy0 - eps), (x, uy1 + eps)):
+                        if not point_in_any(ex, ey, union):
+                            a = to_px(ex, min(max(uy0, ey - eps), uy1))
+                            b = to_px(ex, max(min(uy1, ey + eps), uy0))
+                            p.drawLine(int(a[0]), int(a[1]), int(b[0]), int(b[1]))
+                for y in ys:
+                    for (ex, ey) in ((ux0 - eps, y), (ux1 + eps, y)):
+                        if not point_in_any(ex, ey, union):
+                            a = to_px(min(max(ux0, ex - eps), ux1), ey)
+                            b = to_px(max(min(ux1, ex + eps), ux0), ey)
+                            p.drawLine(int(a[0]), int(a[1]), int(b[0]), int(b[1]))
 
-            # ---- per-field footprints (thin outlines, human ticks) ----
-            for f in fields:
-                colour = QColor(CLASS_COLORS.get(f.raw_class, "#888888"))
-                alpha = 90 if f.raw_class == "MONOLAYER" else 130
-                colour.setAlpha(alpha)
-                x0, y0 = to_px(f.x - f.w / 2, f.y - f.h / 2)
-                x1, y1 = to_px(f.x + f.w / 2, f.y + f.h / 2)
-                p.fillRect(int(x0), int(y0),
-                           max(2, int(x1 - x0)), max(2, int(y1 - y0)), colour)
-                p.setPen(QPen(QColor(colour.red(), colour.green(), colour.blue(), 255),
-                              2 if f.raw_class == "MONOLAYER" else 1))
-                p.drawRect(int(x0), int(y0),
-                           max(2, int(x1 - x0)), max(2, int(y1 - y0)))
-                if f.human_label:  # human-labeled field: white corner tick
-                    p.setPen(QPen(QColor(255, 255, 255), 2))
-                    p.drawLine(int(x0) + 2, int(y0) + 6, int(x0) + 6, int(y0) + 2)
+        # ---- per-field footprints (thin outlines, human ticks) ----
+        for f in fields:
+            colour = QColor(CLASS_COLORS.get(f.raw_class, "#888888"))
+            alpha = 90 if f.raw_class == "MONOLAYER" else 130
+            colour.setAlpha(alpha)
+            x0, y0 = to_px(f.x - f.w / 2, f.y - f.h / 2)
+            x1, y1 = to_px(f.x + f.w / 2, f.y + f.h / 2)
+            p.fillRect(int(x0), int(y0),
+                       max(2, int(x1 - x0)), max(2, int(y1 - y0)), colour)
+            p.setPen(QPen(QColor(colour.red(), colour.green(), colour.blue(), 255), 1))
+            p.drawRect(int(x0), int(y0),
+                       max(2, int(x1 - x0)), max(2, int(y1 - y0)))
+            if f.human_label:
+                p.setPen(QPen(QColor(255, 255, 255), 2))
+                p.drawLine(int(x0) + 2, int(y0) + 6, int(x0) + 6, int(y0) + 2)
                 p.setPen(QPen(QColor(200, 200, 200), 1))
 
-        # ---- Phase 4: continuous monolayer region boundary (green line) ----
-        # drawn with the SAME to_px transform as the footprints (already
-        # includes the boundary in the fit above)
-        if self._boundary and fields:
+        # ---- Phase 4 boundary: clear green line (same transform) ----
+        if self._boundary:
             p.setPen(QPen(QColor(30, 200, 90), 3))
             for contour in self._boundary:
                 pts_px = [to_px(x, y) for x, y in contour]
@@ -152,18 +219,10 @@ class ScanMapPanel(QWidget):
                     for (ax, ay), (bx, by) in zip(pts_px, pts_px[1:] + pts_px[:1]):
                         p.drawLine(int(ax), int(ay), int(bx), int(by))
 
-        # current live scan position (crosshair)
+        # ---- current live scan position (crosshair) ----
         if self._current:
-            if fields:
-                cx0, cy0 = to_px(self._current[0], self._current[1])
-            else:
-                cx0, cy0 = 8 + w / 2, 30 + h / 2
+            cx0, cy0 = to_px(self._current[0], self._current[1])
             p.setPen(QPen(QColor(80, 200, 255), 2))
             p.drawLine(int(cx0) - 6, int(cy0), int(cx0) + 6, int(cy0))
             p.drawLine(int(cx0), int(cy0) - 6, int(cx0), int(cy0) + 6)
-
-        if not fields:
-            p.setPen(QPen(QColor(140, 140, 140), 1))
-            p.drawText(8, self.height() // 2,
-                       "analyze fields (CAPTURE or Auto) to build the survey map")
         p.end()

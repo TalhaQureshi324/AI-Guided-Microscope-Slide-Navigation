@@ -329,6 +329,18 @@ one connected region spanning observed extents; incremental extension
 bridging); L-shape reconstructed from data (no hard-coded U); contradicting
 overlap creates no territory; 0.5-cell discretization documented.
 
+**Phase 5 - zoom/scale independence (2026-10-07):** the scan map panel now
+has ONE explicit view transform (widget = centre + (fit - centre)*zoom +
+pan): all geometry lives in scan/world coordinates and never in UI pixels.
+Wheel zooms, left-drag pans, [+]/[-] buttons, and a **Reset View** button
+(restore fit - does NOT delete scan history; Reset Scan remains the only
+survey wipe). Fit is centre-anchored so zoom-about-centre is a pure scale.
+Verified: 50%/100%/200% views and 300/600/900 px widget sizes keep field,
+monolayer layer, boundary and crosshair aligned within 1%; pan translates
+the whole view consistently. Composition lesson: with pan applied after
+zoom, zooming simply scales the existing pan (p' = p*ratio) - the
+cursor-style formula double-counted.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration
