@@ -134,6 +134,13 @@ scan_map:
   contradictions_to_demote: 2   # conservative: repeated majority contradictions
   overlap_min_fraction: 0.25    # meaningful overlap with an existing footprint
   human_label_weight: 2         # operator evidence counts double
+  # Phase 4 continuous boundary: spatial confidence grid over the monolayer
+  # layer -> binary mask -> MODEST cleanup only (small-gap closing,
+  # tiny-island removal) -> cv2 outer contours. Cell size scales with the
+  # median footprint (cell = width * boundary_cell_fraction).
+  boundary_cell_fraction: 0.125
+  boundary_close_cells: 2
+  boundary_min_region_cells: 4
 
 # ---- navigation state machine (Phase 2) --------------------------------------
 # Experimental prototype values - enter must be ABOVE exit (hysteresis) so

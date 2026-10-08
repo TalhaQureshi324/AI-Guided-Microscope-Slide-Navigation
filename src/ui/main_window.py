@@ -496,8 +496,14 @@ class MainWindow(QMainWindow):
             mono_rects = [(f.x - f.w / 2, f.y - f.h / 2,
                            f.x + f.w / 2, f.y + f.h / 2)
                           for f in self.scan_map.active_monolayer_footprints()]
+            b_ver, boundary = self.scan_map.monolayer_boundary(
+                cell_fraction=self.cfg.get("boundary_cell_fraction", 0.125),
+                close_cells=int(self.cfg.get("boundary_close_cells", 2)),
+                min_region_cells=int(self.cfg.get("boundary_min_region_cells", 4)),
+            )
             self.scan_map_panel.set_data(self.scan_map.fields(), mono_rects,
-                                         self.state.current_net())
+                                         self.state.current_net(),
+                                         boundary_version=b_ver, boundary=boundary)
         self.statusBar().showMessage(
             f"● {self.state_source} | capture {snap['capture_fps']:.1f} fps | "
             f"ui {self.ui_fps:.0f} fps | motion {snap['motion_state']} | "

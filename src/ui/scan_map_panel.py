@@ -36,16 +36,25 @@ class ScanMapPanel(QWidget):
         super().__init__(parent)
         self._fields: List[FieldFootprint] = []
         self._mono_rects: List[Tuple[float, float, float, float]] = []
+        self._boundary: List[List[Tuple[float, float]]] = []
+        self._boundary_version: Optional[int] = None
         self._current: Optional[Tuple[float, float]] = None
         self.setMinimumHeight(220)
 
     def set_data(self, fields: List[FieldFootprint],
                  monolayer_rects: List[Tuple[float, float, float, float]],
-                 current_pos: Optional[Tuple[float, float]]) -> None:
+                 current_pos: Optional[Tuple[float, float]],
+                 boundary_version: Optional[int] = None,
+                 boundary: Optional[List[List[Tuple[float, float]]]] = None) -> None:
         """monolayer_rects = ACTIVE monolayer footprints (x0,y0,x1,y1) in scan
-        coordinates; the widget merges them into one visual region (Phase 3)."""
+        coordinates; boundary = outer contour(s) of the accumulated monolayer
+        region in scan coordinates (Phase 4), tagged with its map version so
+        it is only refreshed when the survey changed."""
         self._fields = fields
         self._mono_rects = list(monolayer_rects)
+        if boundary is not None and boundary_version != self._boundary_version:
+            self._boundary = boundary
+            self._boundary_version = boundary_version
         self._current = current_pos
         self.update()
 
@@ -69,6 +78,10 @@ class ScanMapPanel(QWidget):
             ys0 = [f.y - f.h / 2 for f in fields] + [r[1] for r in mono]
             xs1 = [f.x + f.w / 2 for f in fields] + [r[2] for r in mono]
             ys1 = [f.y + f.h / 2 for f in fields] + [r[3] for r in mono]
+            for contour in self._boundary:
+                for pt in contour:
+                    xs0.append(pt[0]); ys0.append(pt[1])
+                    xs1.append(pt[0]); ys1.append(pt[1])
             for px, py in extra:
                 xs0.append(px); ys0.append(py); xs1.append(px); ys1.append(py)
             min_x, min_y = min(xs0), min(ys0)
@@ -127,6 +140,17 @@ class ScanMapPanel(QWidget):
                     p.setPen(QPen(QColor(255, 255, 255), 2))
                     p.drawLine(int(x0) + 2, int(y0) + 6, int(x0) + 6, int(y0) + 2)
                 p.setPen(QPen(QColor(200, 200, 200), 1))
+
+        # ---- Phase 4: continuous monolayer region boundary (green line) ----
+        # drawn with the SAME to_px transform as the footprints (already
+        # includes the boundary in the fit above)
+        if self._boundary and fields:
+            p.setPen(QPen(QColor(30, 200, 90), 3))
+            for contour in self._boundary:
+                pts_px = [to_px(x, y) for x, y in contour]
+                if len(pts_px) >= 2:
+                    for (ax, ay), (bx, by) in zip(pts_px, pts_px[1:] + pts_px[:1]):
+                        p.drawLine(int(ax), int(ay), int(bx), int(by))
 
         # current live scan position (crosshair)
         if self._current:

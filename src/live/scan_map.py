@@ -20,6 +20,7 @@ a crash never loses the survey.
 from __future__ import annotations
 
 import json
+import math
 import threading
 import time
 from dataclasses import asdict, dataclass, field
@@ -65,6 +66,8 @@ class ScanMap:
         self._lock = threading.Lock()
         self._fields: List[FieldFootprint] = []
         self._by_job: Dict[int, FieldFootprint] = {}
+        self._version = 0                 # bumps on every survey change
+        self._boundary_cache: Dict[tuple, tuple] = {}
 
     # ------------------------------------------------------------------
     def add_field(self, job, source_image: str = "") -> Optional[FieldFootprint]:
@@ -94,6 +97,7 @@ class ScanMap:
         with self._lock:
             self._fields.append(fp)
             self._by_job[fp.job_id] = fp
+            self._version += 1
         return fp
 
     def set_human_label(self, job_id: int, label: str) -> bool:
@@ -154,12 +158,14 @@ class ScanMap:
                 if smaller > 0 and inter / smaller < overlap_min_fraction:
                     continue  # touching, not meaningfully overlapping
 
+                changed = False
                 if is_mono:
                     fp.ml_agreements += weight
                     summary["affirmed"] += 1
                     if fp.ml_demoted and (fp.ml_agreements > fp.ml_disagreements):
                         fp.ml_demoted = False  # evidence restored the area
                         summary["promoted"] += 1
+                    changed = True
                 else:
                     fp.ml_disagreements += weight
                     summary["contradicted"] += 1
@@ -168,6 +174,9 @@ class ScanMap:
                             and fp.ml_disagreements > fp.ml_agreements):
                         fp.ml_demoted = True  # conservative: repeated majority only
                         summary["demoted"] += 1
+                        changed = True
+            if any(summary.values()):
+                self._version += 1
 
             if is_mono:
                 covered = self._covered_fraction_locked(
@@ -199,11 +208,103 @@ class ScanMap:
             return [f for f in self._fields
                     if f.raw_class == "MONOLAYER" and not f.ml_demoted]
 
+    # ------------------------------------------------------------------
+    # Phase 4: continuous monolayer region + outer boundary
+    # ------------------------------------------------------------------
+    def monolayer_boundary(self, cell_fraction: float = 0.125,
+                           close_cells: int = 2,
+                           min_region_cells: int = 4,
+                           force: bool = False) -> tuple:
+        """Outer contour(s) of the accumulated monolayer region.
+
+        Pipeline: spatial confidence grid over the active monolayer layer
+        (each cell accumulates the evidence confidence of covering fields)
+        -> binary high-confidence mask -> modest cleanup (small-gap closing,
+        tiny-island removal; no aggressive reshaping) -> cv2 outer contours
+        converted back to scan coordinates.
+
+        Cached on (version, params); recomputes only when the survey changes,
+        so the boundary expands incrementally as scanning continues.
+        Returns (version, contours) with contours = list of [(x, y), ...].
+        """
+        key = ("boundary", round(cell_fraction, 4), close_cells, min_region_cells)
+        with self._lock:
+            if not force:
+                cached = self._boundary_cache.get(key)
+                if cached is not None and cached[0] == self._version:
+                    return cached
+            fields = [f for f in self._fields
+                      if f.raw_class == "MONOLAYER" and not f.ml_demoted]
+            version = self._version
+        if not fields:
+            with self._lock:
+                self._boundary_cache[key] = (version, [])
+            return version, []
+
+        import cv2
+        import numpy as np
+        from scipy import ndimage
+
+        cell = max(1.0, float(np.median([f.w for f in fields])) * cell_fraction)
+        min_x = min(f.x - f.w / 2 for f in fields) - cell
+        min_y = min(f.y - f.h / 2 for f in fields) - cell
+        max_x = max(f.x + f.w / 2 for f in fields) + cell
+        max_y = max(f.y + f.h / 2 for f in fields) + cell
+        gw = max(1, int(round((max_x - min_x) / cell)))
+        gh = max(1, int(round((max_y - min_y) / cell)))
+
+        conf = np.zeros((gh, gw), dtype=np.float64)
+        weight = np.zeros((gh, gw), dtype=np.float64)
+        for f in fields:
+            f_conf = ((f.ml_agreements + f.score)
+                      / (f.ml_agreements + f.ml_disagreements + 1.0))
+            cx0 = int(max(0, (f.x - f.w / 2 - min_x) / cell))
+            cy0 = int(max(0, (f.y - f.h / 2 - min_y) / cell))
+            cx1 = int(min(gw, math.ceil((f.x + f.w / 2 - min_x) / cell)))
+            cy1 = int(min(gh, math.ceil((f.y + f.h / 2 - min_y) / cell)))
+            conf[cy0:cy1, cx0:cx1] += f_conf
+            weight[cy0:cy1, cx0:cx1] += 1.0
+        with np.errstate(invalid="ignore", divide="ignore"):
+            mono_conf = np.where(weight > 0, conf / np.maximum(weight, 1e-9), 0.0)
+
+        mask = (weight > 0) & (mono_conf >= 0.5)
+        # modest cleanup: small-gap closing + tiny-island removal ONLY
+        if close_cells > 0:
+            struct = np.ones((2 * close_cells + 1, 2 * close_cells + 1), dtype=bool)
+            mask = ndimage.binary_closing(mask, structure=struct)
+        labelled, n = ndimage.label(mask)
+        if n:
+            sizes = ndimage.sum_labels(mask, labelled, range(1, n + 1))
+            keep = np.zeros_like(mask)
+            for i in range(1, n + 1):
+                if sizes[i - 1] >= min_region_cells:
+                    keep |= labelled == i
+            mask = keep
+
+        contours_scan: List[List[Tuple[float, float]]] = []
+        # findContours traces the outermost FOREGROUND pixels, which sit one
+        # grid cell inside the true region edge; a 1-cell dilation puts the
+        # traced ring back on the region boundary (documented discretization:
+        # boundary fidelity is ~0.5 cell).
+        mask_d = ndimage.binary_dilation(mask, structure=np.ones((3, 3), dtype=bool))
+        u8 = mask_d.astype(np.uint8) * 255
+        found = cv2.findContours(u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in found[0] if isinstance(found, tuple) else found:
+            pts = [(min_x + (float(pt[0][0]) + 0.5) * cell,
+                    min_y + (float(pt[0][1]) + 0.5) * cell) for pt in cnt]
+            if len(pts) >= 3:
+                contours_scan.append(pts)
+        with self._lock:
+            self._boundary_cache[key] = (version, contours_scan)
+        return version, contours_scan
+
     def reset(self) -> None:
         """Reset Scan (hotkey R) clears the whole survey."""
         with self._lock:
             self._fields.clear()
             self._by_job.clear()
+            self._version += 1
+            self._boundary_cache.clear()
 
     # ------------------------------------------------------------------
     def bounds(self, extra_points: Optional[List[Tuple[float, float]]] = None

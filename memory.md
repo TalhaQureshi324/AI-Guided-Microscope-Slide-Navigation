@@ -315,6 +315,20 @@ viewport's current-field green border remains separate. Config:
 `scan_map:` (contradictions_to_demote 2, overlap_min_fraction 0.25,
 human_label_weight 2).
 
+**Phase 4 - continuous monolayer boundary (2026-10-07):**
+`ScanMap.monolayer_boundary()` builds a spatial confidence grid over the
+active monolayer layer (cell = footprint width x 0.125; each cell
+accumulates the evidence confidence of covering fields), thresholds it to a
+binary mask, applies MODEST cleanup only (small-gap closing 2 cells,
+tiny-island removal < 4 cells), and extracts cv2 outer contours converted
+back to scan coordinates. The contour is drawn as a 3px green line on the
+scan map (same transform as footprints), cached per survey version so it
+expands incrementally as scanning continues. Validated: 4-field chain ->
+one connected region spanning observed extents; incremental extension
+(2450 -> 3150 px); isolated field = separate contour (no unjustified
+bridging); L-shape reconstructed from data (no hard-coded U); contradicting
+overlap creates no territory; 0.5-cell discretization documented.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration
