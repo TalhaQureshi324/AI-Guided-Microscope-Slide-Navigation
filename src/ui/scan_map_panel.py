@@ -37,6 +37,7 @@ class ScanMapPanel(QWidget):
         self._current: Optional[Tuple[float, float]] = None
         self._sweeps: List[dict] = []
         self._sweep_trails: List[List[Tuple[float, float]]] = []
+        self._holes: List[Tuple[float, float, float, float]] = []
         self._mosaic_qimg = None
         self._mosaic_rect_scan: Optional[tuple] = None
         self._pending_mosaic = None
@@ -124,6 +125,15 @@ class ScanMapPanel(QWidget):
 
     def set_fov(self, fov_wh: Tuple[float, float]) -> None:
         self._fov_wh = fov_wh
+
+    def set_holes(self, holes: List[Tuple[float, float, float, float]]) -> None:
+        """Interior UNSCANNED gaps as (cx, cy, w, h) scan-coord tuples - Phase 10 §2."""
+        self._holes = list(holes)
+        self._hole_rects = [
+            (cx - w / 2.0, cy - h / 2.0, cx + w / 2.0, cy + h / 2.0)
+            for (cx, cy, w, h) in holes
+        ]
+        self.update()
 
     def set_mosaic_overview(self, rgb: np.ndarray, origin_x: float,
                             origin_y: float, scan_per_px: float) -> None:
@@ -258,6 +268,20 @@ class ScanMapPanel(QWidget):
                             a = to_px(min(max(ux0, ex - eps), ux1), ey)
                             b = to_px(max(min(ux1, ex + eps), ux0), ey)
                             p.drawLine(int(a[0]), int(a[1]), int(b[0]), int(b[1]))
+
+        # ---- Phase 10: UNSCANNED GAP holes (red translucent + hatch ticks) ----
+        for hx0, hy0, hx1, hy1 in getattr(self, "_hole_rects", []) or []:
+            ax0, ay0 = to_px(hx0, hy0)
+            ax1, ay1 = to_px(hx1, hy1)
+            fill = QColor("#b91c1c"); fill.setAlpha(56)
+            p.fillRect(int(ax0), int(ay0),
+                       max(2, int(ax1 - ax0)), max(2, int(ay1 - ay0)), fill)
+            p.setPen(QPen(QColor(185, 28, 28), 1, Qt.PenStyle.DashLine))
+            p.drawRect(int(ax0), int(ay0),
+                       max(2, int(ax1 - ax0)), max(2, int(ay1 - ay0)))
+            p.setPen(QPen(QColor(185, 28, 28), 1))
+            gx0, gy0 = int(ax0) + 4, int(ay0) + 6
+            p.drawText(int(gx0), int(gy0), "UNSCANNED GAP")
 
         # ---- per-field footprints (thin outlines, human ticks) ----
         for f in fields:

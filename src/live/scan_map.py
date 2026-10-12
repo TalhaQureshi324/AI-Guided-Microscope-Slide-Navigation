@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import json
 import math
+
+import numpy as np
 import threading
 import time
 from dataclasses import asdict, dataclass, field
@@ -76,6 +78,7 @@ class ScanMap:
         self._by_job: Dict[int, FieldFootprint] = {}
         self._version = 0                 # bumps on every survey change
         self._boundary_cache: Dict[tuple, tuple] = {}
+        self._coverage_cache: Dict[tuple, tuple] = {}
         # Phase 6: multi-sweep trajectories in ONE map coordinate system
         self._sweeps: List[Dict] = []     # Sweep dicts (id, direction, start...)
         self._current_sweep: Optional[Dict] = None
@@ -170,6 +173,13 @@ class ScanMap:
             source_image=source_image,
             human_label=job.human_label,
             sweep_id=current_sweep_id,
+            reg_method=getattr(job, "reg_method", ""),
+            reg_state=getattr(job, "reg_state", ""),
+            reg_confidence=float(getattr(job, "reg_confidence", 0.0) or 0.0),
+            reg_dx=float(getattr(job, "reg_dx", 0.0) or 0.0),
+            reg_dy=float(getattr(job, "reg_dy", 0.0) or 0.0),
+            reg_ref_job_id=int(getattr(job, "reg_ref_job_id", -1) or -1),
+            drift_warning=bool(getattr(job, "drift_warning", False)),
         )
         with self._lock:
             self._fields.append(fp)
@@ -291,6 +301,109 @@ class ScanMap:
                     if f.raw_class == "MONOLAYER" and not f.ml_demoted]
 
     # ------------------------------------------------------------------
+    # Phase 10: coverage grid (SCANNED / LOW_CONFIDENCE / UNSCANNED) + holes
+    # ------------------------------------------------------------------
+    def coverage_grid(self, cell_fraction: float = 0.125,
+                      low_conf_thr: float = 0.5, force: bool = False) -> tuple:
+        """Rasterized observation grid over the union of registered fields.
+
+        Returns (version, origin_x, origin_y, cell, grid, coverage_pct):
+          grid[y, x] = 2 SCANNED (covered, best reg conf >= low_conf_thr)
+                     = 1 LOW_CONFIDENCE (covered, best conf < threshold)
+                     = 0 UNSCANNED
+        Cached per survey version + params.
+        """
+        key = ("coverage", round(cell_fraction, 4), round(low_conf_thr, 2))
+        cell = max(1.0, float(np.median(
+            [f.w for f in self._fields])) * cell_fraction) if self._fields             else float(800 * cell_fraction)
+        with self._lock:
+            if not force:
+                cached = self._coverage_cache.get(key)
+                if cached is not None and cached[0] == self._version:
+                    return cached
+            fields = list(self._fields)
+            version = self._version
+        if not fields:
+            with self._lock:
+                self._coverage_cache[key] = (version, 0.0, 0.0, cell, None, 0.0)
+            return version, 0.0, 0.0, cell, None, 0.0
+
+        pad = 1
+        x0 = min(f.x - f.w / 2 for f in fields) - pad * cell
+        y0 = min(f.y - f.h / 2 for f in fields) - pad * cell
+        x1 = max(f.x + f.w / 2 for f in fields) + pad * cell
+        y1 = max(f.y + f.h / 2 for f in fields) + pad * cell
+        gw = max(1, int(math.ceil((x1 - x0) / cell)))
+        gh = max(1, int(math.ceil((y1 - y0) / cell)))
+        best_conf = np.zeros((gh, gw), dtype=np.float64)
+        for f in fields:
+            conf = 1.0 if f.reg_state == "REGISTRATION_GOOD" else (
+                float(f.reg_confidence) if f.reg_state == "REGISTRATION_WEAK" else 0.0)
+            if conf <= 0:
+                continue
+            cx0 = max(0, int(math.floor((f.x - f.w / 2 - x0) / cell)))
+            cy0 = max(0, int(math.floor((f.y - f.h / 2 - y0) / cell)))
+            cx1 = min(gw, int(math.ceil((f.x + f.w / 2 - x0) / cell)))
+            cy1 = min(gh, int(math.ceil((f.y + f.h / 2 - y0) / cell)))
+            best_conf[cy0:cy1, cx0:cx1] = np.maximum(best_conf[cy0:cy1, cx0:cx1], conf)
+        grid = np.zeros((gh, gw), dtype=np.uint8)
+        grid[best_conf > 0] = 1
+        grid[best_conf >= low_conf_thr] = 2
+        # coverage over the survey bbox only: the 1-cell padded ring is
+        # outside the scan and would otherwise dilute the percentage
+        inner = grid[pad:gh - pad, pad:gw - pad]
+        scanned_pct = (float((inner > 0).sum()) / float(inner.size)
+                       if inner.size else 0.0)
+        with self._lock:
+            self._coverage_cache[key] = (version, x0, y0, cell, grid, scanned_pct)
+        return version, x0, y0, cell, grid, scanned_pct
+
+    def coverage_summary(self, cell_fraction: float = 0.125,
+                         low_conf_thr: float = 0.5,
+                         min_hole_cells: int = 2) -> Dict:
+        """Coverage stats + interior UNSCANNED holes (spec Phase 10 §1/§2).
+
+        Holes = unscanned grid components fully surrounded by scanned
+        territory (components touching the padded outer border are outside
+        the survey, not holes). Never filled or interpolated semantically.
+        """
+        version, x0, y0, cell, grid, scanned_pct = self.coverage_grid(
+            cell_fraction, low_conf_thr)
+        if grid is None:
+            return {"version": version, "coverage_pct": 0.0, "holes": []}
+        from scipy import ndimage
+        unscanned = grid == 0
+        # the padded ring is outside by construction; drop it from hole search
+        inner = np.zeros_like(unscanned)
+        inner[1:-1, 1:-1] = unscanned[1:-1, 1:-1]
+        labelled, n = ndimage.label(inner)
+        holes = []
+        if n:
+            sizes = ndimage.sum_labels(inner, labelled, range(1, n + 1))
+            for i in range(1, n + 1):
+                if sizes[i - 1] < min_hole_cells:
+                    continue
+                ys, xs = np.where(labelled == i)
+                holes.append({
+                    "area_cells": int(sizes[i - 1]),
+                    "x": round(x0 + (float(xs.min()) + 0.5) * cell, 1),
+                    "y": round(y0 + (float(ys.min()) + 0.5) * cell, 1),
+                    "w": round(float(xs.max() - xs.min() + 1) * cell, 1),
+                    "h": round(float(ys.max() - ys.min() + 1) * cell, 1),
+                })
+        holes.sort(key=lambda hd: -hd["area_cells"])
+        total = float(grid.size)
+        scanned = float((grid > 0).sum())
+        return {"version": version, "coverage_pct": round(scanned / total, 4),
+                "holes": holes, "cell": cell}
+
+    def invalidate_caches(self) -> None:
+        with self._lock:
+            self._version += 1
+            self._boundary_cache.clear()
+            self._coverage_cache.clear()
+
+    # ------------------------------------------------------------------
     # Phase 4: continuous monolayer region + outer boundary
     # ------------------------------------------------------------------
     def monolayer_boundary(self, cell_fraction: float = 0.125,
@@ -324,7 +437,6 @@ class ScanMap:
             return version, []
 
         import cv2
-        import numpy as np
         from scipy import ndimage
 
         cell = max(1.0, float(np.median([f.w for f in fields])) * cell_fraction)
@@ -390,6 +502,7 @@ class ScanMap:
             self._sweep_offset = (0.0, 0.0)
             self._version += 1
             self._boundary_cache.clear()
+            self._coverage_cache.clear()
 
     # ------------------------------------------------------------------
     def bounds(self, extra_points: Optional[List[Tuple[float, float]]] = None

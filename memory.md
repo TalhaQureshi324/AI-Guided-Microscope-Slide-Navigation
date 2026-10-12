@@ -424,6 +424,21 @@ field 2 (large move) correctly FAILED out of the trusted map.
 - tests: placement bounds, negative expansion, blending, exports,
   persistence, overview scaling, GUI layer render - all passed
 
+**Phase 10 - gap & duplicate-revisit detection (2026-10-08):**
+`ScanMap.coverage_grid()/coverage_summary()` - rasterized observation grid
+(SCANNED=2 / LOW_CONFIDENCE=1 / UNSCANNED=0, cell = footprint width x
+0.125, best-reg-conf per cell) over the survey bbox; coverage pct excludes
+the 1-cell padded ring; INTERIOR UNSCANNED HOLES = unscanned components
+surrounded by scanned territory (border-touching = outside, filtered by
+min_hole_cells). Mini-map draws holes as red translucent + dashed-outline
+'UNSCANNED GAP' markers. Duplicate/revisit: capture-time coverage preview
+tags jobs with duplicate_of (best-overlap job) and revisit=True when
+captured over scanned territory; both observations preserved in
+accepted_fields.csv (capture_type/revisit/duplicate_of columns) - evidence
+fusion stays conservative (Phase 3 layer already never overwrites).
+Semantic boundaries still never cross unscanned space (monolayer union has
+no interpolation; boundary closing is only 2 cells).
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration

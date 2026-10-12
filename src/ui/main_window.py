@@ -616,15 +616,26 @@ class MainWindow(QMainWindow):
             if frame_snap is not None:
                 self.scan_map_panel.set_fov((frame_snap.shape[1],
                                              frame_snap.shape[0]))
+            cov = self.scan_map.coverage_summary(
+                cell_fraction=float(self.cfg.get("boundary_cell_fraction", 0.125)),
+                min_hole_cells=int(self.cfg.get("min_hole_cells", 2)))
+            self.scan_map_panel.set_holes(
+                [(hd["x"], hd["y"], hd["w"], hd["h"]) for hd in cov["holes"]])
+            self._coverage_stats = cov
             self.scan_map_panel.set_data(
                 self.scan_map.fields(), mono_rects,
                 self.state.current_net(),
                 boundary_version=b_ver, boundary=boundary,
                 sweeps=self.scan_map.sweeps(), sweep_trails=sweep_trails)
+        cov_stats = getattr(self, "_coverage_stats", None)
+        cov_line = ""
+        if cov_stats:
+            cov_line = (f" | coverage {cov_stats['coverage_pct'] * 100:.0f}%"
+                        f" | unscanned gaps: {len(cov_stats['holes'])}")
         self.statusBar().showMessage(
             f"● {self.state_source} | capture {snap['capture_fps']:.1f} fps | "
             f"ui {self.ui_fps:.0f} fps | motion {snap['motion_state']} | "
-            f"cellpose {cp} | analyses {snap['analysis_count']}"
+            f"cellpose {cp} | analyses {snap['analysis_count']}" + cov_line
         )
 
     BTN_STYLES = {
