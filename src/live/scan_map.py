@@ -189,6 +189,10 @@ class ScanMap:
         with self._lock:
             return list(self._fields)
 
+    def active_fields(self) -> List[FieldFootprint]:
+        with self._lock:
+            return list(self._fields)
+
     def monolayer_fields(self) -> List[FieldFootprint]:
         with self._lock:
             return [f for f in self._fields if f.raw_class == "MONOLAYER"]

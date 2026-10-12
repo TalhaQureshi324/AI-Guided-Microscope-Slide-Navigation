@@ -60,6 +60,8 @@ class SharedState:
     auto_analysis_enabled: bool = True           # Auto Analyze ON/OFF toggle (§3)
     snapshot_requests: int = 0                   # SAVE SNAPSHOT (no Cellpose)
     analysis_enabled: bool = True                # SPACE master pause (auto only)
+    preview: Dict = field(default_factory=dict)  # live coverage guidance (Phase 8)
+    skipped_duplicates: int = 0                  # auto jobs skipped as duplicates
     pending_superseded: int = 0
     requested_fields: int = 0
 

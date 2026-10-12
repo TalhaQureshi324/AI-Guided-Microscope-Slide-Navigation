@@ -38,6 +38,8 @@ ACCEPTED_COLUMNS = [
     "raw_monolayer_score", "raw_class", "smoothed_score", "smoothed_class",
     "reg_state", "reg_method", "reg_confidence", "reg_dx", "reg_dy",
     "reg_ref_job_id", "drift_warning",
+    "capture_type", "coverage_state", "overlap_prev_pct", "overlap_total_pct",
+    "new_coverage_pct", "duplicate_pct",
 ]
 
 RAW_COLUMNS = ["frame_idx", "t_sec", "disp_px", "sharpness", "brightness",
@@ -158,6 +160,12 @@ class LiveSession:
             "reg_dy": getattr(j, "reg_dy", ""),
             "reg_ref_job_id": getattr(j, "reg_ref_job_id", -1),
             "drift_warning": getattr(j, "drift_warning", False),
+            "capture_type": getattr(j, "capture_type", "NORMAL"),
+            "coverage_state": getattr(j, "coverage_state", ""),
+            "overlap_prev_pct": round(getattr(j, "overlap_prev_pct", 0.0), 4),
+            "overlap_total_pct": round(getattr(j, "overlap_total_pct", 0.0), 4),
+            "new_coverage_pct": round(getattr(j, "new_coverage_pct", 0.0), 4),
+            "duplicate_pct": round(getattr(j, "duplicate_pct", 0.0), 4),
         })
         self._acc_file.flush()
         if self.cfg.get("save_masks", False) and j.labels is not None:

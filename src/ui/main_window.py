@@ -421,6 +421,15 @@ class MainWindow(QMainWindow):
             (f"fast screen: {snap['screen_result'] or '-'}", _GREY),
             (f"cellpose: {cp_txt}", (90, 170, 250) if cp == "PROCESSING" else _GREY),
         ]
+        # ---- Phase 8: live movement guidance ----
+        preview = getattr(self.state, "preview", {}) or {}
+        if preview.get("move_hint"):
+            pv_state = preview.get("state", "")
+            colour = ((80, 220, 130) if pv_state == "CAPTURE_READY"
+                      else (250, 170, 60) if pv_state == "GAP_RISK"
+                      else (90, 170, 250))
+            lines.append((f"{preview['move_hint']}  |  scanned-overlap "
+                          f"{preview.get('overlap_prev_pct', 0) * 100:.0f}%", colour))
         result_reg = snap.get("result")
         if result_reg is not None and getattr(result_reg, "reg_state", ""):
             reg_line = (f"registration: {result_reg.reg_state.split('_')[-1]} "
@@ -445,6 +454,12 @@ class MainWindow(QMainWindow):
         if not snap["analysis_enabled"]:
             lines.append(("ANALYSIS PAUSED", (60, 160, 255)))
         frame = draw_live_hud(frame, lines)
+
+        # ---- Phase 8: CAPTURE button guidance coloring ----
+        prev = getattr(self.state, "preview", {}) or {}
+        pv_state = prev.get("state", "")
+        if pv_state:
+            self._apply_capture_button_style(pv_state)
 
         self.viewport.setPixmap(QPixmap.fromImage(_np_to_qimage(frame)))
 
@@ -562,6 +577,8 @@ class MainWindow(QMainWindow):
             + (f"\n{jobs_txt}" if jobs_txt else "")
         )
         self._update_nav_banner()
+        self._apply_capture_button_style(
+            (getattr(self.state, "preview", {}) or {}).get("state", ""))
         self._refresh_job_list()
         last_reg = snap.get("result")
         if last_reg is not None and getattr(last_reg, "reg_state", ""):
@@ -596,6 +613,22 @@ class MainWindow(QMainWindow):
             f"ui {self.ui_fps:.0f} fps | motion {snap['motion_state']} | "
             f"cellpose {cp} | analyses {snap['analysis_count']}"
         )
+
+    BTN_STYLES = {
+        "CAPTURE_READY": ("background:#2e7d32; color:white; font-size:14px; "
+                          "font-weight:bold; padding:8px 18px; border:1px solid #1b5e20;"),
+        "TOO_MUCH_OVERLAP": ("background:#92400e; color:white; font-size:14px; "
+                             "font-weight:bold; padding:8px 18px; border:1px solid #f59e0b;"),
+        "GAP_RISK": ("background:#7f1d1d; color:white; font-size:14px; "
+                     "font-weight:bold; padding:8px 18px; border:1px solid #b91c1c;"),
+        "ALREADY_SCANNED": ("background:#37474f; color:white; font-size:14px; "
+                            "font-weight:bold; padding:8px 18px; border:1px solid #607d8b;"),
+    }
+
+    def _apply_capture_button_style(self, pv_state: str) -> None:
+        style = self.BTN_STYLES.get(pv_state)
+        if style:
+            self.btn_capture.setStyleSheet(style)
 
     NAV_BANNER = {
         "OUTSIDE_MONOLAYER":   ("OUTSIDE MONOLAYER", "#7f1d1d", "#b91c1c"),

@@ -387,6 +387,25 @@ CSV and the live HUD. Stage coordinates later = swap register_field's
 position source only. Real-video regression: field 1 FIRST_FIELD GOOD;
 field 2 (large move) correctly FAILED out of the trusted map.
 
+**Phase 8 - coverage/overlap controller (2026-10-08):** `src/live/coverage.py`
+- `evaluate_coverage(candidate_rect, existing, ...)` - exact y-scanline union
+  overlap vs the scanned territory, best-single-field overlap, order-
+  independent, works horizontal/vertical/diagonal; states ALREADY_SCANNED
+  (>= duplicate_overlap_threshold 0.90), TOO_MUCH_OVERLAP (> target_max
+  0.30), GAP_RISK (< target_min 0.20), CAPTURE_READY (in band),
+  FIRST_FIELD (empty map). Config: configs/live.yaml `coverage:`.
+- GlobalPoseTracker.preview_coverage(): live read-only overlap preview
+  (phase corr vs last GOOD field, no commitment) for operator guidance.
+- CAPTURE button restyles by guidance state (green READY / amber TOO_MUCH /
+  dark red GAP / grey ALREADY); CAPTURE is never blocked - captures against
+  guidance are recorded capture_type=FORCED in the CSV.
+- AUTO duplicate skip: >= 90% overlap with confidently-registered territory
+  skips Cellpose (skipped_duplicates counter); manual always runs.
+- Coverage metrics per accepted field in accepted_fields.csv: capture_type,
+  coverage_state, overlap_prev/total, new_coverage, duplicate_pct.
+- GUI: live guidance line (arrow + scanned-overlap %) under the fast-screen
+  line.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration

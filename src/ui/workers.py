@@ -57,11 +57,28 @@ from src.video.monolayer import (
     compute_field_features,
     prototype_monolayer_score,
 )
+from src.live.coverage import (
+    evaluate_coverage,
+    ALREADY_SCANNED,
+)
 from src.video.motion import MotionEstimator
 from src.video.temporal import TemporalSmoother
 
 from .rendering import build_result_layers
 from .state import SharedState, CELLPOSE_IDLE, CELLPOSE_LOADING, CELLPOSE_PROCESSING
+
+
+
+def _warn_state(preview: Optional[Dict]) -> bool:
+    """True when the operator captured against guidance (GAP/duplicate/etc.)."""
+    if not preview:
+        return False
+    return preview.get("state") in ("GAP_RISK", "TOO_MUCH_OVERLAP",
+                                    "ALREADY_SCANNED", "REGISTRATION UNCERTAIN")
+
+
+def _state_of(preview: Optional[Dict]) -> str:
+    return (preview or {}).get("state", "")
 
 logger = logging.getLogger("live.capture")
 logger_a = logging.getLogger("live.analysis")
@@ -69,9 +86,22 @@ logger_a = logging.getLogger("live.analysis")
 _MOTION_WIDTH = 480
 
 
+
+
+def _apply_coverage(job, preview: Optional[Dict]) -> None:
+    if not preview:
+        return
+    job.coverage_state = preview.get("state", "")
+    job.overlap_prev_pct = preview.get("overlap_prev_pct", 0.0)
+    job.overlap_total_pct = preview.get("overlap_total_pct", 0.0)
+    job.new_coverage_pct = preview.get("new_coverage_pct", 0.0)
+    job.duplicate_pct = preview.get("duplicate_pct", 0.0)
+
+
 class CaptureWorker(threading.Thread):
     def __init__(self, source, state: SharedState, controller: LiveFieldController,
-                 cfg: Dict, jobmgr: JobManager, session=None, scan_map=None) -> None:
+                 cfg: Dict, jobmgr: JobManager, session=None, scan_map=None,
+                 tracker=None) -> None:
         super().__init__(name="capture", daemon=True)
         self.source = source
         self.state = state
@@ -80,6 +110,7 @@ class CaptureWorker(threading.Thread):
         self.jobmgr = jobmgr
         self.session = session
         self.scan_map = scan_map
+        self.tracker = tracker   # Phase 7 poses for live coverage preview
         self.motion = MotionEstimator(_MOTION_WIDTH)
         self.screen = FastScreen(
             work_width=cfg.get("fast_screen_work_width", 480),
@@ -254,6 +285,17 @@ class CaptureWorker(threading.Thread):
         cx, cy, ct = self.controller.cumulative
         off_x, off_y = (self.scan_map.current_offset()
                         if self.scan_map is not None else (0.0, 0.0))
+
+        # ---- Phase 8: live coverage preview (every 5th frame, ~6 Hz) -----
+        preview = None
+        if seq % 5 == 0 and self.tracker is not None:
+            preview = self.tracker.preview_coverage(frame, off_x, off_y,
+                                                    self.scan_map)
+            preview["dir_x"] = dx
+            preview["dir_y"] = dy
+        with st.lock:
+            if preview is not None:
+                st.preview = preview
         base_meta = dict(
             cumulative_x=cx, cumulative_y=cy, cumulative_total=ct,
             screen_result=screen["fast_screen_result"],
@@ -282,6 +324,17 @@ class CaptureWorker(threading.Thread):
             hybrid = self.cfg.get("cellpose_mode", "benchmark") == "hybrid"
             if hybrid and screen["fast_screen_result"] != "UNCERTAIN":
                 return  # Mode B: screening already decided - skip inference
+            # Phase 8: skip near-duplicate AUTO fields - expensive Cellpose is
+            # wasted when >= duplicate_overlap_threshold is already scanned and
+            # the previous result was confidently registered (spec §5)
+            dup_thr = float(self.cfg.get("duplicate_overlap_threshold", 0.90))
+            if (preview is not None
+                    and preview.get("state") == ALREADY_SCANNED
+                    and preview.get("best_reg_conf", 1.0) >= 0.5):
+                st.skipped_duplicates += 1
+                logger.info("auto field f%d skipped: %.0f%% already scanned "
+                            "(duplicate)", seq, preview.get("overlap_total_pct", 0) * 100)
+                return
             job = self.jobmgr.submit(
                 "AUTO", frame, seq, t_src, map_x=cx + off_x, map_y=cy + off_y,
                 reason=decision.request_reason, **base_meta)
@@ -583,6 +636,34 @@ class FeatureWorker(threading.Thread):
                           job.job_id, reg.state, reg.method, reg.confidence,
                           reg.dx, reg.dy, reg.global_x, reg.global_y,
                           " | DRIFT" if reg.drift_warning else "")
+
+        # ---- Phase 8: coverage metrics for the accepted field ------------
+        if self.scan_map is not None:
+            from src.live.coverage import ExistingFootprint, evaluate_coverage
+            w, h = job.frame.shape[1], job.frame.shape[0]
+            cand = (job.map_x - w / 2, job.map_y - h / 2,
+                    job.map_x + w / 2, job.map_y + h / 2)
+            existing = [ExistingFootprint(
+                (f.x - f.w / 2, f.y - f.h / 2, f.x + f.w / 2, f.y + f.h / 2),
+                f.job_id, f.reg_confidence, f.human_label)
+                for f in self.scan_map.fields() if f.job_id != job.job_id]
+            rep = evaluate_coverage(
+                cand, existing,
+                target_overlap_min=float(self.cfg.get("target_overlap_min", 0.20)),
+                target_overlap_max=float(self.cfg.get("target_overlap_max", 0.30)),
+                duplicate_overlap_threshold=float(self.cfg.get(
+                    "duplicate_overlap_threshold", 0.90)),
+                gap_risk_threshold=float(self.cfg.get("gap_risk_threshold", 0.35)),
+            )
+            job.coverage_state = rep.state
+            job.overlap_prev_pct = rep.overlap_prev_pct
+            job.overlap_total_pct = rep.overlap_total_pct
+            job.new_coverage_pct = rep.new_coverage_pct
+            job.duplicate_pct = rep.duplicate_pct
+            job.features["overlap_prev_pct"] = rep.overlap_prev_pct
+            job.features["overlap_total_pct"] = rep.overlap_total_pct
+            job.features["new_coverage_pct"] = rep.new_coverage_pct
+            job.features["duplicate_pct"] = rep.duplicate_pct
 
         registered_ok = reg is not None and reg.state != "REGISTRATION_FAILED"
 

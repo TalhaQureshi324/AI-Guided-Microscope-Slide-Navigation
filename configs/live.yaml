@@ -129,6 +129,17 @@ manual_analysis:
   detailed_features: true      # manual captures always get the full treatment
   merge_analysis: true         # incl. DT merge suspects (orange outlines)
 
+# ---- coverage / overlap controller (Phase 8) ---------------------------------
+# Experimental target band for overlap IN THE DIRECTION OF TRAVEL between
+# neighboring captures. Not hard-coded; recalibrate with labeled scans.
+coverage:
+  target_overlap_min: 0.20
+  target_overlap_max: 0.30
+  duplicate_overlap_threshold: 0.90   # ALREADY SCANNED / skip duplicate AUTO
+  gap_risk_threshold: 0.35            # informational (state color)
+  preview_every_n_frames: 5
+  skip_duplicate_auto: true           # Phase 8 §5: don't waste Cellpose
+
 # ---- frame registration (Phase 7) --------------------------------------------
 # Translation-only primary model (phase correlation); ORB translation as
 # fallback; confidence states GOOD/WEAK/FAILED. Failed fields never enter

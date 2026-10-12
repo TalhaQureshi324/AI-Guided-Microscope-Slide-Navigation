@@ -95,6 +95,11 @@ def build_cfg(args) -> dict:
     analysis = cfg.get("analysis", {})
     cfg.setdefault("gpu_workers", analysis.get("gpu_workers", 1))
     cfg.setdefault("cpu_feature_workers", analysis.get("cpu_feature_workers", 2))
+    # flatten coverage block (Phase 8)
+    cov = cfg.get("coverage", {})
+    for k in ("target_overlap_min", "target_overlap_max",
+              "duplicate_overlap_threshold", "gap_risk_threshold"):
+        cfg.setdefault(k, cov.get(k))
     if args.source:
         cfg["source"] = args.source
     if args.cellpose_mode:
@@ -157,7 +162,8 @@ def main() -> int:
     )
     if args.view_only:
         # capture worker only (spec §5: prove the feed before Cellpose)
-        capture = CaptureWorker(source, state, controller, cfg, None, session=None)
+        capture = CaptureWorker(source, state, controller, cfg, None, session=None,
+                                tracker=tracker)
         capture.start()
     else:
         jobmgr = JobManager(max_manual_queue=cfg.get("max_manual_queue", 20))
