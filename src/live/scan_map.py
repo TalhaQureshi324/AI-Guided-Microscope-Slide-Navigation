@@ -58,6 +58,13 @@ class FieldFootprint:
     ml_disagreements: int = 0            # overlapping later contradicting fields
     ml_demoted: bool = False             # removed from the active green layer
     sweep_id: int = 0                    # which sweep trajectory captured this
+    reg_method: str = ""                 # FIRST_FIELD / PHASE_CORR / ORB_TRANSLATION / MAP_FIELD_SNAP
+    reg_state: str = ""                  # REGISTRATION_GOOD / WEAK / FAILED
+    reg_confidence: float = 0.0          # 0..1
+    reg_dx: float = 0.0                  # local translation from the reference field
+    reg_dy: float = 0.0
+    reg_ref_job_id: int = -1             # reference field used for registration
+    drift_warning: bool = False          # revisit disagreed with chained pose
 
 
 class ScanMap:
@@ -207,8 +214,9 @@ class ScanMap:
         if job.labels is None or job.raw_class is None:
             return {"added": False, "reason": "no result"}
         h, w = job.labels.shape[:2]
-        nx0 = job.cumulative_x - w / 2.0
-        ny0 = job.cumulative_y - h / 2.0
+        mx = getattr(job, "map_x", job.cumulative_x)
+        my = getattr(job, "map_y", job.cumulative_y)
+        nx0, ny0 = mx - w / 2.0, my - h / 2.0
         nx1, ny1 = nx0 + w, ny0 + h
         is_mono = job.raw_class == "MONOLAYER"
         weight = human_label_weight if job.human_label else 1

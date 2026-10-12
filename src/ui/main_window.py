@@ -61,7 +61,7 @@ def _np_to_qimage(frame_bgr: np.ndarray) -> QImage:
 class MainWindow(QMainWindow):
     def __init__(self, state: SharedState, controller: LiveFieldController,
                  cfg: Dict, session=None, view_only: bool = False, jobmgr=None,
-                 scan_map=None, nav_machine=None):
+                 scan_map=None, nav_machine=None, tracker=None):
         super().__init__()
         self.state = state
         self.controller = controller
@@ -70,6 +70,7 @@ class MainWindow(QMainWindow):
         self.jobmgr = jobmgr
         self.scan_map = scan_map
         self.nav_machine = nav_machine
+        self.tracker = tracker
         self.view_only = view_only
         self.ui_fps = 0.0
         self._ui_frames = 0
@@ -334,6 +335,9 @@ class MainWindow(QMainWindow):
             cls_txt = (f"{viewing_job.raw_class} (screen)" if gross
                        else str(viewing_job.raw_class))
             occ_txt = f"   screen occ {occ * 100:.0f}%" if occ is not None else ""
+            reg = getattr(viewing_job, "reg_state", "")
+            reg_txt = (f"{reg.split('_')[-1]} via {viewing_job.reg_method} "
+                       f"conf {viewing_job.reg_confidence:.2f}") if reg else ""
             lines = [
                 (f"JOB #{viewing_job.job_id}  [{viewing_job.priority}]", _GREY),
                 (f"RESULT: {cls_txt}   score {viewing_job.score:.2f}",
@@ -341,8 +345,18 @@ class MainWindow(QMainWindow):
                 (f"RBCs {(viewing_job.features or {}).get('rbc_candidate_count', '?')}"
                  f"   coverage {(viewing_job.features or {}).get('coverage', 0) * 100:.0f}%"
                  f"   merge suspects {merges}{occ_txt}", _GREY),
-                (f"press ● LIVE to return to the camera feed", _GREY),
             ]
+            if viewing_job.drift_warning:
+                lines.append(("!! POSE DRIFT WARNING - revisit disagrees with chained pose",
+                              (60, 90, 250)))
+            if reg:
+                lines.append((f"registration: {reg_txt}"
+                              f"   global ({viewing_job.map_x:.0f}, {viewing_job.map_y:.0f})",
+                              _GREY))
+            if reg == "REGISTRATION_FAILED":
+                lines.append(("REGISTRATION FAILED - return to the previous known "
+                              "field and capture again", (60, 60, 240)))
+            lines.append((f"press ● LIVE to return to the camera feed", _GREY))
             frame = draw_live_hud(frame, lines)
             self.viewport.setPixmap(QPixmap.fromImage(_np_to_qimage(frame)))
             self._latest = {"snap": snap, "stale": False, "age": None, "frame": frame,
@@ -407,6 +421,17 @@ class MainWindow(QMainWindow):
             (f"fast screen: {snap['screen_result'] or '-'}", _GREY),
             (f"cellpose: {cp_txt}", (90, 170, 250) if cp == "PROCESSING" else _GREY),
         ]
+        result_reg = snap.get("result")
+        if result_reg is not None and getattr(result_reg, "reg_state", ""):
+            reg_line = (f"registration: {result_reg.reg_state.split('_')[-1]} "
+                        f"({result_reg.reg_method}, conf "
+                        f"{result_reg.reg_confidence:.2f})")
+            if getattr(result_reg, "drift_warning", False):
+                reg_line += "  !! POSE DRIFT"
+            lines.append((reg_line,
+                          (80, 220, 130) if result_reg.reg_state == "REGISTRATION_GOOD"
+                          else (90, 170, 250) if result_reg.reg_state == "REGISTRATION_WEAK"
+                          else (90, 90, 240)))
         if result is None:
             lines.append(("detailed analysis: waiting for first field ...", _GREY))
         elif stale:
@@ -538,6 +563,12 @@ class MainWindow(QMainWindow):
         )
         self._update_nav_banner()
         self._refresh_job_list()
+        last_reg = snap.get("result")
+        if last_reg is not None and getattr(last_reg, "reg_state", ""):
+            reg_line = (f"registration: {last_reg.reg_state.split('_')[-1]} via "
+                        f"{last_reg.reg_method} conf {last_reg.reg_confidence:.2f}"
+                        + (" | !! POSE DRIFT" if getattr(last_reg, "drift_warning", False) else ""))
+            self.status_top.setText(self.status_top.text() + "\n" + reg_line)
         if self.scan_map is not None:
             mono_rects = [(f.x - f.w / 2, f.y - f.h / 2,
                            f.x + f.w / 2, f.y + f.h / 2)
@@ -659,6 +690,8 @@ class MainWindow(QMainWindow):
                 self.scan_map.reset()
             if self.nav_machine is not None:
                 self.nav_machine.reset()
+            if self.tracker is not None:
+                self.tracker.reset()
             with st.lock:
                 st.nav_state = "OUTSIDE_MONOLAYER"
                 st.nav_score = None

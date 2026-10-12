@@ -36,6 +36,8 @@ ACCEPTED_COLUMNS = [
     "pct_0_neighbors", "pct_1_neighbor", "pct_2_neighbors", "pct_3plus_neighbors",
     "mean_graph_degree", "largest_cluster_fraction", "density_cv",
     "raw_monolayer_score", "raw_class", "smoothed_score", "smoothed_class",
+    "reg_state", "reg_method", "reg_confidence", "reg_dx", "reg_dy",
+    "reg_ref_job_id", "drift_warning",
 ]
 
 RAW_COLUMNS = ["frame_idx", "t_sec", "disp_px", "sharpness", "brightness",
@@ -149,6 +151,13 @@ class LiveSession:
             "smoothed_score": (round(j.smoothed_score, 4)
                                if j.smoothed_score is not None else ""),
             "smoothed_class": j.smoothed_class or "",
+            "reg_state": getattr(j, "reg_state", ""),
+            "reg_method": getattr(j, "reg_method", ""),
+            "reg_confidence": round(j.reg_confidence, 3) if getattr(j, "reg_confidence", 0) else "",
+            "reg_dx": getattr(j, "reg_dx", ""),
+            "reg_dy": getattr(j, "reg_dy", ""),
+            "reg_ref_job_id": getattr(j, "reg_ref_job_id", -1),
+            "drift_warning": getattr(j, "drift_warning", False),
         })
         self._acc_file.flush()
         if self.cfg.get("save_masks", False) and j.labels is not None:

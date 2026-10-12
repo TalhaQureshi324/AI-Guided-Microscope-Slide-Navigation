@@ -369,6 +369,24 @@ mono_rects rename leftover in ScanMapPanel.set_data (NameError on empty
 survey startup). Lesson: EVERY scripted patch gets an assert; tests must
 use the exact production call signatures.
 
+**Phase 7 - robust frame registration & global pose (2026-10-08):**
+`src/live/registration.py` - GlobalPoseTracker: translation-only phase
+correlation on prepped (gray/downscaled/normalized, Hanning-windowed)
+frames with ORB+median-translation VERIFICATION on every field (phase corr
+WRAPS beyond half-frame and aliases large moves to confident wrong small
+offsets - ORB is wrap-free and wins when its evidence is strong: matches
+>= 15, inlier >= 0.5, conf >= 0.3). Confidence states GOOD/WEAK/FAILED;
+overlap-consistency NCC gate catches wrapped garbage and featureless
+frames (raw std < 3). Reference selection: preferred anchor (START NEW
+SWEEP) > last GOOD > recent; loop-closure snap against nearby map fields
+corrects drift; disagreements > 300 px -> POSE_DRIFT_WARNING. FAILED
+fields are analyzed+logged but never enter the trusted map; GUI shows
+'REGISTRATION FAILED - return to previous known field'. Reg metadata
+(state/method/conf/dx/dy/ref/drift) flows to job objects, accepted_fields
+CSV and the live HUD. Stage coordinates later = swap register_field's
+position source only. Real-video regression: field 1 FIRST_FIELD GOOD;
+field 2 (large move) correctly FAILED out of the trusted map.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration

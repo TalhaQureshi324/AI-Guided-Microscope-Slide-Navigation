@@ -34,6 +34,7 @@ from src.capture.sources import make_source  # noqa: E402
 from src.live.controller import LiveFieldController  # noqa: E402
 from src.live.jobs import JobManager  # noqa: E402
 from src.live.nav_state import NavigationStateMachine  # noqa: E402
+from src.live.registration import GlobalPoseTracker  # noqa: E402
 from src.live.scan_map import ScanMap  # noqa: E402
 from src.live.session import LiveSession  # noqa: E402
 from src.ui.state import SharedState  # noqa: E402
@@ -72,7 +73,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def build_pool(state, cfg, jobmgr: JobManager, session=None, scan_map=None,
-               nav_machine=None):
+               nav_machine=None, tracker=None):
     """Configurable worker pool: N GPU Cellpose workers + M CPU feature
     workers over one job manager (spec §7/§10 - benchmark before raising)."""
     maskq = _MaskQueue(maxsize=8)
@@ -82,7 +83,7 @@ def build_pool(state, cfg, jobmgr: JobManager, session=None, scan_map=None,
     ]
     cpu = [
         FeatureWorker(f"cpu{i + 1}", state, cfg, jobmgr, maskq, session=session,
-                      scan_map=scan_map, nav_machine=nav_machine)
+                      scan_map=scan_map, nav_machine=nav_machine, tracker=tracker)
         for i in range(int(cfg.get("cpu_feature_workers", 2)))
     ]
     return maskq, gpu, cpu
@@ -163,13 +164,16 @@ def main() -> int:
         state.jobmgr = jobmgr
         scan_map = ScanMap()
         state.nav_machine = nav
+        tracker = GlobalPoseTracker(cfg)
+        state.tracker = tracker
         session = LiveSession(session_dir, cfg, cfg["source"], settings={})
         state.session_dir = str(session_dir)
         state.source_label = source.name
         capture = CaptureWorker(source, state, controller, cfg, jobmgr,
                                 session=session, scan_map=scan_map)
         _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
-                                                      scan_map=scan_map, nav_machine=nav)
+                                                      scan_map=scan_map, nav_machine=nav,
+                                                      tracker=tracker)
         if cfg.get("record_enabled"):
             state.recording = True
         capture.start()
@@ -195,7 +199,7 @@ def main() -> int:
 
     win = MainWindow(state, controller, cfg, session=session,
                      view_only=args.view_only, jobmgr=jobmgr, scan_map=scan_map,
-                     nav_machine=nav)
+                     nav_machine=nav, tracker=tracker)
     if args.view_only:
         win.statusBar().showMessage("VIEW-ONLY mode: no Cellpose (camera check)")
     win.show()
@@ -225,6 +229,8 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
     jobmgr = JobManager(max_manual_queue=cfg.get("max_manual_queue", 20))
     state.jobmgr = jobmgr
     scan_map = ScanMap()
+    tracker = GlobalPoseTracker(cfg)
+    state.tracker = tracker
     nav = NavigationStateMachine(
         enter_score=cfg.get("navigation", {}).get("enter_score", 0.65),
         exit_score=cfg.get("navigation", {}).get("exit_score", 0.45),
@@ -238,7 +244,8 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
     capture = CaptureWorker(source, state, controller, cfg, jobmgr,
                             session=session, scan_map=scan_map)
     _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
-                                                  scan_map=scan_map, nav_machine=nav)
+                                                  scan_map=scan_map, nav_machine=nav,
+                                                  tracker=tracker)
     t0 = time.perf_counter()
     capture.start()
     for w in gpu_workers + cpu_workers:

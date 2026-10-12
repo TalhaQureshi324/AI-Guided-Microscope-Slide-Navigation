@@ -129,6 +129,23 @@ manual_analysis:
   detailed_features: true      # manual captures always get the full treatment
   merge_analysis: true         # incl. DT merge suspects (orange outlines)
 
+# ---- frame registration (Phase 7) --------------------------------------------
+# Translation-only primary model (phase correlation); ORB translation as
+# fallback; confidence states GOOD/WEAK/FAILED. Failed fields never enter
+# the trusted map. Work width = registration image downscale (px).
+registration:
+  work_width: 480
+  phase_good: 0.22
+  phase_weak: 0.12
+  orb_good_matches: 15
+  orb_good_inlier: 0.5
+  orb_weak_matches: 8
+  orb_weak_inlier: 0.35
+  max_jump_frac: 1.6        # displacement beyond 1.6 x frame diag = implausible
+  drift_warn_px: 300        # revisit disagreement -> POSE_DRIFT_WARNING
+  search_radius_frac: 1.3   # loop-closure search radius (x frame diag)
+  max_prep_cache: 30        # prep'd reference frames kept in memory
+
 # ---- persistent monolayer layer (Phase 3) ------------------------------------
 scan_map:
   contradictions_to_demote: 2   # conservative: repeated majority contradictions

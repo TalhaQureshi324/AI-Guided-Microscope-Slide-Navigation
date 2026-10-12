@@ -448,7 +448,7 @@ class FeatureWorker(threading.Thread):
     def __init__(self, worker_id: str, state: SharedState, cfg: Dict,
                  jobmgr: JobManager, maskq: _MaskQueue, session=None,
                  smoother: Optional[TemporalSmoother] = None,
-                 scan_map=None, nav_machine=None) -> None:
+                 scan_map=None, nav_machine=None, tracker=None) -> None:
         super().__init__(name=worker_id, daemon=True)
         self.worker_id = worker_id
         self.state = state
@@ -458,6 +458,7 @@ class FeatureWorker(threading.Thread):
         self.session = session
         self.scan_map = scan_map
         self.nav_machine = nav_machine  # shared Phase 2 state machine
+        self.tracker = tracker          # shared Phase 7 global pose tracker
         self.smoother = smoother or TemporalSmoother(
             alpha=cfg.get("temporal_alpha", 0.4),
             window=cfg.get("temporal_window", 5),
@@ -563,8 +564,31 @@ class FeatureWorker(threading.Thread):
         job.t_end = time.perf_counter()
         self.jobmgr.mark(job, COMPLETE, self.worker_id)
 
+        # ---- Phase 7: register the field into the global slide frame ------
+        reg = None
+        if self.tracker is not None:
+            reg = self.tracker.register_field(job, job.frame)
+            job.map_x, job.map_y = reg.global_x, reg.global_y
+            job.reg_state = reg.state
+            job.reg_method = reg.method
+            job.reg_confidence = reg.confidence
+            job.reg_dx, job.reg_dy = round(reg.dx, 1), round(reg.dy, 1)
+            job.reg_ref_job_id = reg.ref_job_id if reg.ref_job_id is not None else -1
+            job.drift_warning = reg.drift_warning
+            if reg.drift_warning:
+                logger_a.warning("POSE_DRIFT_WARNING at job #%d: chained pose "
+                                 "disagrees with map snap (f%d)", job.job_id, job.frame_idx)
+            logger_a.info("reg job #%d [%s] via %s conf %.2f d=(%.0f,%.0f) "
+                          "-> global (%.0f,%.0f)%s",
+                          job.job_id, reg.state, reg.method, reg.confidence,
+                          reg.dx, reg.dy, reg.global_x, reg.global_y,
+                          " | DRIFT" if reg.drift_warning else "")
+
+        registered_ok = reg is not None and reg.state != "REGISTRATION_FAILED"
+
         # ---- persistent scan map (Phase 1) + monolayer evidence layer (Phase 3)
-        if self.scan_map is not None and job.score is not None:
+        # UNREGISTERED fields never enter the trusted map (spec §10)
+        if self.scan_map is not None and job.score is not None and registered_ok:
             source_image = f"keyframes/job_{job.job_id:04d}_f{job.frame_idx:06d}.jpg"
             self.scan_map.add_field(job, source_image=source_image)
             ml_summary = self.scan_map.update_monolayer_layer(
@@ -577,6 +601,13 @@ class FeatureWorker(threading.Thread):
                 logger_a.info("monolayer layer: %s", ml_summary)
             if self.session is not None:
                 self.session.save_scan_map(self.scan_map)
+        if reg is not None:
+            job.features["reg_state"] = reg.state
+            job.features["reg_method"] = reg.method
+            job.features["reg_confidence"] = round(reg.confidence, 3)
+            job.features["reg_dx"] = round(reg.dx, 1)
+            job.features["reg_dy"] = round(reg.dy, 1)
+            job.features["screen_gross_thick"] = job.features.get("screen_gross_thick", False)
 
         if job.priority == "AUTO" and not job.stale:
             # navigation state machine: fresh AUTO results only (spec Phase 2)
