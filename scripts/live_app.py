@@ -35,6 +35,7 @@ from src.live.controller import LiveFieldController  # noqa: E402
 from src.live.jobs import JobManager  # noqa: E402
 from src.live.nav_state import NavigationStateMachine  # noqa: E402
 from src.live.registration import GlobalPoseTracker  # noqa: E402
+from src.live.mosaic import MosaicBuilder  # noqa: E402
 from src.live.scan_map import ScanMap  # noqa: E402
 from src.live.session import LiveSession  # noqa: E402
 from src.ui.state import SharedState  # noqa: E402
@@ -73,7 +74,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def build_pool(state, cfg, jobmgr: JobManager, session=None, scan_map=None,
-               nav_machine=None, tracker=None):
+               nav_machine=None, tracker=None, mosaic=None):
     """Configurable worker pool: N GPU Cellpose workers + M CPU feature
     workers over one job manager (spec §7/§10 - benchmark before raising)."""
     maskq = _MaskQueue(maxsize=8)
@@ -83,7 +84,8 @@ def build_pool(state, cfg, jobmgr: JobManager, session=None, scan_map=None,
     ]
     cpu = [
         FeatureWorker(f"cpu{i + 1}", state, cfg, jobmgr, maskq, session=session,
-                      scan_map=scan_map, nav_machine=nav_machine, tracker=tracker)
+                      scan_map=scan_map, nav_machine=nav_machine, tracker=tracker,
+                      mosaic=mosaic)
         for i in range(int(cfg.get("cpu_feature_workers", 2)))
     ]
     return maskq, gpu, cpu
@@ -172,6 +174,8 @@ def main() -> int:
         state.nav_machine = nav
         tracker = GlobalPoseTracker(cfg)
         state.tracker = tracker
+        mosaic = MosaicBuilder(
+            feather_fraction=float(cfg.get("mosaic_feather_fraction", 0.15)))
         session = LiveSession(session_dir, cfg, cfg["source"], settings={})
         state.session_dir = str(session_dir)
         state.source_label = source.name
@@ -179,7 +183,7 @@ def main() -> int:
                                 session=session, scan_map=scan_map)
         _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
                                                       scan_map=scan_map, nav_machine=nav,
-                                                      tracker=tracker)
+                                                      tracker=tracker, mosaic=mosaic)
         if cfg.get("record_enabled"):
             state.recording = True
         capture.start()
@@ -205,11 +209,13 @@ def main() -> int:
 
     win = MainWindow(state, controller, cfg, session=session,
                      view_only=args.view_only, jobmgr=jobmgr, scan_map=scan_map,
-                     nav_machine=nav, tracker=tracker)
+                     nav_machine=nav, tracker=tracker, mosaic=mosaic)
     if args.view_only:
         win.statusBar().showMessage("VIEW-ONLY mode: no Cellpose (camera check)")
     win.show()
     rc = app.exec()
+    if mosaic is not None:
+        exports = mosaic.export(session_dir / "mosaic_exports")
     if scan_map is not None and session is not None:
         session.save_scan_map(scan_map)
     _shutdown(state, session_dir, session)
@@ -298,8 +304,11 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
         w.join(timeout=10)
     elapsed = time.perf_counter() - t0
     session.save_scan_map(scan_map)
+    if mosaic is not None:
+        mosaic.export(session_dir / "mosaic_exports")
     summary = session.write_summary(state, elapsed, jobmgr=jobmgr)
     summary["scan_map_fields"] = len(scan_map.fields())
+    summary["mosaic_placements"] = len(mosaic.placements()) if mosaic else 0
     summary["nav_final_state"] = nav.state
     nav_tr = nav.transitions_as_dicts()
     summary["nav_transitions"] = nav_tr

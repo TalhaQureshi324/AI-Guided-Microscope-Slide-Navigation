@@ -501,7 +501,8 @@ class FeatureWorker(threading.Thread):
     def __init__(self, worker_id: str, state: SharedState, cfg: Dict,
                  jobmgr: JobManager, maskq: _MaskQueue, session=None,
                  smoother: Optional[TemporalSmoother] = None,
-                 scan_map=None, nav_machine=None, tracker=None) -> None:
+                 scan_map=None, nav_machine=None, tracker=None,
+                 mosaic=None) -> None:
         super().__init__(name=worker_id, daemon=True)
         self.worker_id = worker_id
         self.state = state
@@ -512,6 +513,7 @@ class FeatureWorker(threading.Thread):
         self.scan_map = scan_map
         self.nav_machine = nav_machine  # shared Phase 2 state machine
         self.tracker = tracker          # shared Phase 7 global pose tracker
+        self.mosaic = mosaic            # shared Phase 9 RGB mosaic builder
         self.smoother = smoother or TemporalSmoother(
             alpha=cfg.get("temporal_alpha", 0.4),
             window=cfg.get("temporal_window", 5),
@@ -666,6 +668,14 @@ class FeatureWorker(threading.Thread):
             job.features["duplicate_pct"] = rep.duplicate_pct
 
         registered_ok = reg is not None and reg.state != "REGISTRATION_FAILED"
+
+        # ---- Phase 9: blend accepted fields into the RGB mosaic ----------
+        # semantic colors never enter the RGB canvas; failed registrations
+        # are excluded (blending trusts registration quality, spec §5)
+        if self.mosaic is not None and registered_ok and job.score is not None:
+            self.mosaic.place(job.frame, job.map_x, job.map_y,
+                              confidence=max(0.15, job.reg_confidence),
+                              job_id=job.job_id)
 
         # ---- persistent scan map (Phase 1) + monolayer evidence layer (Phase 3)
         # UNREGISTERED fields never enter the trusted map (spec §10)

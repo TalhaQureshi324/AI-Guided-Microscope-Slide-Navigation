@@ -61,7 +61,7 @@ def _np_to_qimage(frame_bgr: np.ndarray) -> QImage:
 class MainWindow(QMainWindow):
     def __init__(self, state: SharedState, controller: LiveFieldController,
                  cfg: Dict, session=None, view_only: bool = False, jobmgr=None,
-                 scan_map=None, nav_machine=None, tracker=None):
+                 scan_map=None, nav_machine=None, tracker=None, mosaic=None):
         super().__init__()
         self.state = state
         self.controller = controller
@@ -71,7 +71,9 @@ class MainWindow(QMainWindow):
         self.scan_map = scan_map
         self.nav_machine = nav_machine
         self.tracker = tracker
+        self.mosaic = mosaic
         self.view_only = view_only
+        self._fov: Optional[Tuple[float, float]] = None
         self.ui_fps = 0.0
         self._ui_frames = 0
         self._ui_fps_t = time.perf_counter()
@@ -364,6 +366,8 @@ class MainWindow(QMainWindow):
             return
 
         frame = snap["frame"]
+        if frame is not None:
+            self._fov = (frame.shape[1], frame.shape[0])
         if frame is None:
             if self.state.source_error:
                 img = np.zeros((540, 960, 3), dtype=np.uint8)
@@ -587,6 +591,11 @@ class MainWindow(QMainWindow):
                         + (" | !! POSE DRIFT" if getattr(last_reg, "drift_warning", False) else ""))
             self.status_top.setText(self.status_top.text() + "\n" + reg_line)
         if self.scan_map is not None:
+            if self.mosaic is not None:
+                ov = self.mosaic.overview()
+                if ov is not None:
+                    rgb, mox, moy, msc = ov
+                    self.scan_map_panel.set_mosaic_overview(rgb, mox, moy, msc)
             mono_rects = [(f.x - f.w / 2, f.y - f.h / 2,
                            f.x + f.w / 2, f.y + f.h / 2)
                           for f in self.scan_map.active_monolayer_footprints()]
@@ -603,6 +612,10 @@ class MainWindow(QMainWindow):
             sweep_trails = [
                 [(x, y) for _, x, y in sorted(trail)] for trail in trails.values()
             ]
+            frame_snap = snap.get("frame")
+            if frame_snap is not None:
+                self.scan_map_panel.set_fov((frame_snap.shape[1],
+                                             frame_snap.shape[0]))
             self.scan_map_panel.set_data(
                 self.scan_map.fields(), mono_rects,
                 self.state.current_net(),
@@ -725,6 +738,8 @@ class MainWindow(QMainWindow):
                 self.nav_machine.reset()
             if self.tracker is not None:
                 self.tracker.reset()
+            if self.mosaic is not None:
+                self.mosaic.reset()
             with st.lock:
                 st.nav_state = "OUTSIDE_MONOLAYER"
                 st.nav_score = None

@@ -406,6 +406,24 @@ field 2 (large move) correctly FAILED out of the trusted map.
 - GUI: live guidance line (arrow + scanned-overlap %) under the fast-screen
   line.
 
+**Phase 9 - incremental RGB mosaic (2026-10-08):** `src/live/mosaic.py`
+- MosaicBuilder: world-coordinate RGB canvas, dynamically expanding in any
+  direction (floor/ceil integer alignment so placements never drift);
+  per-pixel weight = rectangular edge feather x registration confidence;
+  blend = weighted running average (incremental - never rebuilt from
+  scratch); coverage mask = accumulated weight > threshold
+- semantic colors stay on the scan map; the mosaic is pure RGB; placements
+  recorded per field (job id, pose, size, conf, timestamp); exports:
+  mosaic.png + coverage_mask.png + placements.json per session
+  (mosaic_exports/); npz save/load for reproducibility
+- GUI: stitched mosaic is the mini-map BASE LAYER (under trails/footprints/
+  boundary), placed through the Phase 5 view transform (zoom-independent);
+  mini-map also shows the current FOV rectangle; Reset Scan clears it
+- FeatureWorker blends each registered field (conf-weighted, FAILED reg
+  excluded); grayscale frames auto-converted
+- tests: placement bounds, negative expansion, blending, exports,
+  persistence, overview scaling, GUI layer render - all passed
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration

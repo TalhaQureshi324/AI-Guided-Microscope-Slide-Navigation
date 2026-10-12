@@ -17,7 +17,8 @@ from __future__ import annotations
 
 from typing import List, Optional, Tuple
 
-from PyQt6.QtCore import Qt
+import numpy as np
+from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QWidget
 
@@ -36,6 +37,10 @@ class ScanMapPanel(QWidget):
         self._current: Optional[Tuple[float, float]] = None
         self._sweeps: List[dict] = []
         self._sweep_trails: List[List[Tuple[float, float]]] = []
+        self._mosaic_qimg = None
+        self._mosaic_rect_scan: Optional[tuple] = None
+        self._pending_mosaic = None
+        self._fov_wh: Optional[Tuple[float, float]] = None
         self._has_content = False
 
         # explicit view transform state (Phase 5)
@@ -106,6 +111,25 @@ class ScanMapPanel(QWidget):
         self._drag_last = None
 
     # -------------------------------------------------------------- data
+    def set_mosaic_layer(self, rgb: np.ndarray, origin_x: float, origin_y: float,
+                         scan_per_px: float) -> None:
+        """Phase 9: stitched RGB mosaic base layer in scan coordinates."""
+        from PyQt6.QtGui import QImage
+        h, w = rgb.shape[:2]
+        self._mosaic_qimg = QImage(rgb.data, w, h, 3 * w,
+                                   QImage.Format.Format_RGB888).copy()
+        self._mosaic_rect_scan = (origin_x, origin_y,
+                                  origin_x + w * scan_per_px,
+                                  origin_y + h * scan_per_px)
+
+    def set_fov(self, fov_wh: Tuple[float, float]) -> None:
+        self._fov_wh = fov_wh
+
+    def set_mosaic_overview(self, rgb: np.ndarray, origin_x: float,
+                            origin_y: float, scan_per_px: float) -> None:
+        self._pending_mosaic = (np.ascontiguousarray(rgb), origin_x, origin_y,
+                                scan_per_px)
+
     def set_data(self, fields: List[FieldFootprint],
                  monolayer_rects: List[Tuple[float, float, float, float]],
                  current_pos: Optional[Tuple[float, float]],
@@ -120,12 +144,22 @@ class ScanMapPanel(QWidget):
         self._mono_rects = list(monolayer_rects)
         self._sweeps = sweeps or []
         self._sweep_trails = sweep_trails or []
+        if self._pending_mosaic is not None:
+            rgb, ox, oy, sc = self._pending_mosaic
+            from PyQt6.QtGui import QImage
+            h8, w8 = rgb.shape[:2]
+            self._mosaic_qimg = QImage(rgb.data, w8, h8, 3 * w8,
+                                       QImage.Format.Format_RGB888).copy()
+            self._mosaic_rect_scan = (ox, oy, ox + w8 * sc, oy + h8 * sc)
+            self._pending_mosaic = None
         if boundary is not None and boundary_version != self._boundary_version:
             self._boundary = boundary
             self._boundary_version = boundary_version
         self._current = current_pos
         self._has_content = bool(fields or monolayer_rects or self._boundary
-                                 or current_pos)
+                                 or current_pos
+                                 or getattr(self, "_pending_mosaic", None)
+                                 or self._mosaic_qimg is not None)
         self.update()
 
     # -------------------------------------------------------------- paint
@@ -139,6 +173,7 @@ class ScanMapPanel(QWidget):
 
         mono = self._mono_rects
         fields = self._fields
+        mrect = getattr(self, "_mosaic_rect_scan", None)
         if not (self._has_content and w > 10 and h > 10):
             if not fields:
                 p.setPen(QPen(QColor(140, 140, 140), 1))
@@ -173,6 +208,12 @@ class ScanMapPanel(QWidget):
 
         def to_px(x, y):
             return self.to_widget_px(x, y)
+
+        # ---- Phase 9: stitched RGB mosaic base layer (scan-coord placement) ----
+        if getattr(self, "_mosaic_qimg", None) is not None and mrect:
+            p0x, p0y = to_px(mrect[0], mrect[1])
+            p1x, p1y = to_px(mrect[2], mrect[3])
+            p.drawImage(QRectF(p0x, p0y, p1x - p0x, p1y - p0y), self._mosaic_qimg)
 
         # ---- Phase 6: sweep trajectories (faint polylines + start markers) ----
         for si, trail in enumerate(self._sweep_trails, start=1):
@@ -250,4 +291,11 @@ class ScanMapPanel(QWidget):
             p.setPen(QPen(QColor(80, 200, 255), 2))
             p.drawLine(int(cx0) - 6, int(cy0), int(cx0) + 6, int(cy0))
             p.drawLine(int(cx0), int(cy0) - 6, int(cx0), int(cy0) + 6)
+        if self._fov_wh:
+            fw, fh = self._fov_wh
+            fx0, fy0 = to_px(self._current[0] - fw / 2, self._current[1] - fh / 2) if self._current else (None, None)
+            if fx0 is not None:
+                fx1, fy1 = to_px(self._current[0] + fw / 2, self._current[1] + fh / 2)
+                p.setPen(QPen(QColor(80, 200, 255), 1, Qt.PenStyle.DashLine))
+                p.drawRect(int(fx0), int(fy0), int(fx1 - fx0), int(fy1 - fy0))
         p.end()

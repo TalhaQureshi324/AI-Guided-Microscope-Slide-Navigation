@@ -140,6 +140,12 @@ coverage:
   preview_every_n_frames: 5
   skip_duplicate_auto: true           # Phase 8 §5: don't waste Cellpose
 
+# ---- RGB mosaic (Phase 9) ----------------------------------------------------
+# The stitched smear image lives in scan coordinates (Phase 5 zoom rule
+# applies); semantic colors stay on the scan map, never in this canvas.
+mosaic_feather_fraction: 0.15   # edge feather width as fraction of tile size
+mosaic_overview_max_width: 560  # downsampled overview for the GUI mini-map
+
 # ---- frame registration (Phase 7) --------------------------------------------
 # Translation-only primary model (phase correlation); ORB translation as
 # fallback; confidence states GOOD/WEAK/FAILED. Failed fields never enter
