@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 from PyQt6.QtCore import Qt, QRectF
-from PyQt6.QtGui import QColor, QPainter, QPen
+from PyQt6.QtGui import QColor, QImage, QPainter, QPen
 from PyQt6.QtWidgets import QWidget
 
 from src.live.scan_map import CLASS_COLORS, FieldFootprint, point_in_any, union_rects
@@ -44,6 +44,8 @@ class ScanMapPanel(QWidget):
         self._mosaic_qimg = None
         self._mosaic_rect_scan: Optional[tuple] = None
         self._pending_mosaic = None
+        self._revisit: List[dict] = []
+        self._revisit_target: int = -1
         self._fov_wh: Optional[Tuple[float, float]] = None
         self._has_content = False
 
@@ -118,7 +120,6 @@ class ScanMapPanel(QWidget):
     def set_mosaic_layer(self, rgb: np.ndarray, origin_x: float, origin_y: float,
                          scan_per_px: float) -> None:
         """Phase 9: stitched RGB mosaic base layer in scan coordinates."""
-        from PyQt6.QtGui import QImage
         h, w = rgb.shape[:2]
         self._mosaic_qimg = QImage(rgb.data, w, h, 3 * w,
                                    QImage.Format.Format_RGB888).copy()
@@ -158,6 +159,24 @@ class ScanMapPanel(QWidget):
         self._pending_mosaic = (np.ascontiguousarray(rgb), origin_x, origin_y,
                                 scan_per_px)
 
+    def set_revisit(self, points: List[dict], target_idx: int = -1) -> None:
+        """Phase 13: revisit candidates ({x_scan, y_scan, ...}) + the active
+        target, drawn as numbered magenta markers (§6)."""
+        self._revisit = list(points)
+        self._revisit_target = int(target_idx)
+        self.update()
+
+    def set_boundary(self, version: Optional[int],
+                     contours: Optional[List[List[Tuple[float, float]]]]) -> None:
+        """Boundary update with version gating (Phase 11 semantic contours
+        override the Phase 4 merged-layer contour when fresh)."""
+        if contours is None or version is None:
+            return
+        if version != self._boundary_version:
+            self._boundary = contours
+            self._boundary_version = version
+        self.update()
+
     def set_data(self, fields: List[FieldFootprint],
                  monolayer_rects: List[Tuple[float, float, float, float]],
                  current_pos: Optional[Tuple[float, float]],
@@ -174,7 +193,6 @@ class ScanMapPanel(QWidget):
         self._sweep_trails = sweep_trails or []
         if self._pending_mosaic is not None:
             rgb, ox, oy, sc = self._pending_mosaic
-            from PyQt6.QtGui import QImage
             h8, w8 = rgb.shape[:2]
             self._mosaic_qimg = QImage(rgb.data, w8, h8, 3 * w8,
                                        QImage.Format.Format_RGB888).copy()
@@ -226,6 +244,9 @@ class ScanMapPanel(QWidget):
         if self._current:
             xs0.append(self._current[0]); ys0.append(self._current[1])
             xs1.append(self._current[0]); ys1.append(self._current[1])
+        for rp in self._revisit:
+            xs0.append(rp["x_scan"]); ys0.append(rp["y_scan"])
+            xs1.append(rp["x_scan"]); ys1.append(rp["y_scan"])
         min_x, min_y = min(xs0), min(ys0)
         span_x = max(1.0, max(xs1) - min_x)
         span_y = max(1.0, max(ys1) - min_y)
@@ -343,6 +364,22 @@ class ScanMapPanel(QWidget):
             p.setPen(QPen(QColor(250, 190, 40), 2))
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawEllipse(int(cx0) - 5, int(cy0) - 5, 10, 10)
+
+        # ---- Phase 13: revisit points (numbered magenta) + active target ----
+        for ri, rp in enumerate(self._revisit):
+            rx, ry = to_px(rp["x_scan"], rp["y_scan"])
+            is_target = (ri == self._revisit_target)
+            ring = QColor(220, 60, 220) if is_target else QColor(170, 80, 170)
+            p.setPen(QPen(ring, 2 if is_target else 1))
+            p.setBrush(QColor(16, 16, 16))
+            r = 8 if is_target else 6
+            p.drawEllipse(int(rx) - r, int(ry) - r, 2 * r, 2 * r)
+            p.setPen(QPen(ring, 1))
+            p.drawText(int(rx) - 3, int(ry) + 4, str(ri + 1))
+            if is_target:
+                p.setPen(QPen(QColor(220, 60, 220), 1, Qt.PenStyle.DashLine))
+                p.drawLine(int(rx) - 14, int(ry), int(rx) + 14, int(ry))
+                p.drawLine(int(rx), int(ry) - 14, int(rx), int(ry) + 14)
 
         # ---- current live scan position (crosshair) ----
         if self._current:

@@ -149,6 +149,14 @@ class MosaicBuilder:
         with self._lock:
             return list(self._placements)
 
+    def canvas_snapshot(self) -> Optional[Tuple[np.ndarray, float, float]]:
+        """Full-resolution copy of the canvas + scan origin (Phase 13
+        relocalization target). Copy is taken under the lock."""
+        with self._lock:
+            if self._canvas is None or self._origin is None:
+                return None
+            return (self._canvas.copy(), self._origin[0], self._origin[1])
+
     def reset(self) -> None:
         with self._lock:
             self._canvas = None

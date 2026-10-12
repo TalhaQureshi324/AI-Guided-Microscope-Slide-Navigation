@@ -25,8 +25,9 @@ import numpy as np
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtWidgets import (
-    QApplication, QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget,
-    QListWidgetItem, QMainWindow, QPushButton, QVBoxLayout, QWidget,
+    QApplication, QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel,
+    QListWidget, QListWidgetItem, QMainWindow, QPushButton, QVBoxLayout,
+    QWidget,
 )
 
 from src.live.controller import LiveFieldController
@@ -62,7 +63,7 @@ class MainWindow(QMainWindow):
     def __init__(self, state: SharedState, controller: LiveFieldController,
                  cfg: Dict, session=None, view_only: bool = False, jobmgr=None,
                  scan_map=None, nav_machine=None, tracker=None, mosaic=None,
-                 raster=None):
+                 raster=None, exploration=None):
         super().__init__()
         self.state = state
         self.controller = controller
@@ -74,6 +75,7 @@ class MainWindow(QMainWindow):
         self.tracker = tracker
         self.mosaic = mosaic
         self.raster = raster
+        self.exploration = exploration   # Phase 13 high-mag exploration
         self.view_only = view_only
         self._fov: Optional[Tuple[float, float]] = None
         self.ui_fps = 0.0
@@ -243,6 +245,79 @@ class MainWindow(QMainWindow):
         self.hint.setWordWrap(True)
         self.hint.setStyleSheet("color:#757575; font-size:11px;")
         pv.addWidget(self.hint)
+
+        # ---- Phase 13: high-mag exploration --------------------------------
+        exp_title = QLabel("HIGH-MAG EXPLORATION (survey revisit)")
+        exp_title.setStyleSheet("color:#ce93d8; font-size:12px; font-weight:bold;")
+        pv.addWidget(exp_title)
+
+        obj_row = QHBoxLayout()
+        obj_row.addWidget(QLabel("objective"))
+        self.exp_objective = QComboBox()
+        if self.exploration is not None:
+            self.exp_objective.addItems(sorted(self.exploration.objectives()))
+            self.exp_objective.setCurrentText(
+                self.exploration.active_objective)
+            self.exp_objective.currentTextChanged.connect(
+                self._on_objective_changed)
+        obj_row.addWidget(self.exp_objective, stretch=1)
+        pv.addLayout(obj_row)
+
+        self.exp_cal = QLabel("calibration: -")
+        self.exp_cal.setStyleSheet("color:#b39ddb; font-size:11px;")
+        pv.addWidget(self.exp_cal)
+
+        self.btn_finalize = QPushButton("FINALIZE SURVEY MAP")
+        self.btn_finalize.setStyleSheet("padding:6px 10px;")
+        self.btn_finalize.setToolTip(
+            "Freeze the current low-mag survey as the reference: writes the "
+            "RGB mosaic, coverage, monolayer mask, transforms and calibration "
+            "to survey_final/ - revisits then work against this frozen map")
+        self.btn_finalize.clicked.connect(self._on_finalize_survey)
+        pv.addWidget(self.btn_finalize)
+
+        self.exp_survey_status = QLabel("survey: NOT FINALIZED")
+        self.exp_survey_status.setStyleSheet("color:#9e9e9e; font-size:11px;")
+        self.exp_survey_status.setWordWrap(True)
+        pv.addWidget(self.exp_survey_status)
+
+        self.exp_nav = QLabel("navigation: -")
+        self.exp_nav.setStyleSheet("color:#ececec; font-size:12px; font-weight:bold;")
+        self.exp_nav.setWordWrap(True)
+        pv.addWidget(self.exp_nav)
+
+        rev_row = QHBoxLayout()
+        self.exp_mode = QComboBox()
+        self.exp_mode.addItems(["grid", "top_confidence", "centroid"])
+        rev_row.addWidget(self.exp_mode)
+        self.btn_generate = QPushButton("GENERATE")
+        self.btn_generate.setStyleSheet("padding:6px 8px;")
+        self.btn_generate.setToolTip(
+            "Generate revisit points INSIDE the mapped monolayer (spec §6)")
+        self.btn_generate.clicked.connect(self._on_generate_revisit)
+        rev_row.addWidget(self.btn_generate)
+        self.btn_goto = QPushButton("GO TO NEXT")
+        self.btn_goto.setStyleSheet("padding:6px 8px;")
+        self.btn_goto.setToolTip("Mark the next revisit point as the target")
+        self.btn_goto.clicked.connect(self._on_goto_next)
+        rev_row.addWidget(self.btn_goto)
+        pv.addLayout(rev_row)
+
+        self.btn_relocate = QPushButton("RELOCATE HERE (vs frozen mosaic)")
+        self.btn_relocate.setStyleSheet("padding:6px 8px;")
+        self.btn_relocate.setToolTip(
+            "Recover the survey pose of the CURRENT field by registering it "
+            "against the frozen mosaic - do not assume mechanical centering (§7)")
+        self.btn_relocate.clicked.connect(self._on_relocate)
+        pv.addWidget(self.btn_relocate)
+
+        self.exp_points = QListWidget()
+        self.exp_points.setFixedHeight(84)
+        self.exp_points.setStyleSheet(
+            "background:#0d0d0d; color:#e1bee7; font-size:11px; border:1px solid #333;")
+        self.exp_points.itemClicked.connect(self._on_revisit_selected)
+        pv.addWidget(self.exp_points)
+
         pv.addStretch(1)
         root.addWidget(panel)
 
@@ -317,6 +392,125 @@ class MainWindow(QMainWindow):
         if self._selected_job_id is None or self.jobmgr is None:
             return None
         return self.jobmgr.get_completed(self._selected_job_id)
+
+    # ------------------------------------------------------------------
+    # Phase 13: high-mag exploration handlers
+    def _on_finalize_survey(self):
+        if self.exploration is None or self.scan_map is None:
+            return
+        if not len(self.scan_map.fields()):
+            self.statusBar().showMessage(
+                "FINALIZE refused: survey map is empty - scan fields first", 4000)
+            return
+        from pathlib import Path
+        out_dir = Path(self.state.session_dir or ".") / "survey_final"
+        try:
+            paths = self.exploration.finalize(
+                self.scan_map, self.mosaic, out_dir,
+                metadata={"session": self.state.session_dir,
+                          "source": self.state.source_label})
+        except ValueError as exc:
+            self.statusBar().showMessage(f"FINALIZE failed: {exc}", 5000)
+            return
+        n = self.exploration.survey.monolayer_mask.sum() \
+            if self.exploration.survey is not None else 0
+        self.exp_survey_status.setText(
+            f"survey: FROZEN -> {paths['survey_dir']} "
+            f"({n} monolayer cells)")
+        self.btn_finalize.setEnabled(False)
+        self.statusBar().showMessage(
+            "survey map FROZEN - switch objective and revisit the monolayer", 5000)
+
+    def _on_objective_changed(self, name: str):
+        if self.exploration is None:
+            return
+        self.exploration.set_active_objective(name)
+        self._update_cal_label()
+
+    def _update_cal_label(self):
+        if self.exploration is None:
+            return
+        cal = self.exploration.active_cal()
+        frame = self.state.frame_bgr
+        fov = ""
+        if frame is not None:
+            fw, fh = frame.shape[1], frame.shape[0]
+            fov = f" | FOV {cal.to_um(fw):.0f}x{cal.to_um(fh):.0f} um"
+        self.exp_cal.setText(
+            f"calibration: {cal.pixels_per_micron:.3f} px/um "
+            f"({cal.microns_per_pixel:.3f} um/px, {cal.source}){fov}")
+
+    def _on_generate_revisit(self):
+        if self.exploration is None:
+            return
+        if self.exploration.survey is None:
+            self.statusBar().showMessage(
+                "revisit needs a FINALIZED survey map", 4000)
+            return
+        count = int(self.cfg.get("survey", {}).get("revisit_count", 6))
+        pts = self.exploration.generate_revisit(self.exp_mode.currentText(),
+                                                count)
+        self.exp_points.clear()
+        for i, p in enumerate(pts):
+            self.exp_points.addItem(
+                f"#{i + 1}  ({p['x_um']:.0f}, {p['y_um']:.0f}) um  "
+                f"conf {p['conf']:.2f}")
+        self.scan_map_panel.set_revisit(pts,
+                                        0 if pts else -1)
+        self.statusBar().showMessage(
+            f"{len(pts)} revisit point(s) generated ({self.exp_mode.currentText()})",
+            4000)
+
+    def _on_goto_next(self):
+        if self.exploration is None:
+            return
+        t = self.exploration.advance_target()
+        if t is None:
+            self.statusBar().showMessage("no revisit points - GENERATE first", 4000)
+            return
+        self.exp_points.setCurrentRow(self.exploration.target_idx)
+        self.scan_map_panel.set_revisit(self.exploration.revisit,
+                                        self.exploration.target_idx)
+        self.statusBar().showMessage(
+            f"target #{self.exploration.target_idx + 1} at "
+            f"({t['x_um']:.0f}, {t['y_um']:.0f}) um - move the stage there",
+            6000)
+
+    def _on_revisit_selected(self, item):
+        if self.exploration is None:
+            return
+        idx = self.exp_points.row(item)
+        t = self.exploration.set_target(idx)
+        if t is not None:
+            self.scan_map_panel.set_revisit(self.exploration.revisit, idx)
+            self.statusBar().showMessage(
+                f"target #{idx + 1} at ({t['x_um']:.0f}, {t['y_um']:.0f}) um", 4000)
+
+    def _on_relocate(self):
+        if self.exploration is None:
+            return
+        if self.exploration.survey is None:
+            self.statusBar().showMessage(
+                "relocate needs a FINALIZED survey map", 4000)
+            return
+        with self.state.lock:
+            frame = None if self.state.frame_bgr is None \
+                else self.state.frame_bgr.copy()
+        if frame is None:
+            self.statusBar().showMessage("relocate: no live frame", 4000)
+            return
+        hit = self.exploration.relocate(frame)
+        if hit is None:
+            self.exp_nav.setText(
+                "RELOCATE FAILED: field does not match the frozen mosaic "
+                "(position unknown - see limitations)")
+            self.statusBar().showMessage(
+                "relocate FAILED - no pose assumed (honest failure, §8)", 5000)
+        else:
+            # relocate() already re-anchored the exploration chain on success
+            self.statusBar().showMessage(
+                f"relocated: pose ({hit['x_scan']:.0f}, {hit['y_scan']:.0f}) "
+                f"scan px, response {hit['response']:.2f}", 6000)
 
     # ------------------------------------------------------------------
     def _render_tick(self) -> None:
@@ -599,6 +793,33 @@ class MainWindow(QMainWindow):
                         f"{last_reg.reg_method} conf {last_reg.reg_confidence:.2f}"
                         + (" | !! POSE DRIFT" if getattr(last_reg, "drift_warning", False) else ""))
             self.status_top.setText(self.status_top.text() + "\n" + reg_line)
+
+        # ---- Phase 13: exploration status + calibration readout ------------
+        if self.exploration is not None:
+            self._update_cal_label()
+            exp = snap.get("exploration") or {}
+            if self.exploration.survey is None:
+                self.exp_nav.setText("navigation: survey not finalized")
+            elif not exp:
+                self.exp_nav.setText(
+                    f"navigation: FROZEN survey ready ({self.exploration.survey.monolayer_mask.sum()} "
+                    "monolayer cells) - capture a field at high mag")
+            else:
+                state_txt = exp.get("state", "-")
+                colour = {"INSIDE MAPPED MONOLAYER": "#66bb6a",
+                          "NEAR MONOLAYER EDGE": "#ffa726",
+                          "OUTSIDE MAPPED MONOLAYER": "#ef5350"}.get(
+                              state_txt, "#bdbdbd")
+                line = f"navigation: {state_txt}"
+                if exp.get("pose_um"):
+                    line += (f"\npose ({exp['pose_um'][0]:.0f}, "
+                             f"{exp['pose_um'][1]:.0f}) um")
+                if exp.get("dist_um"):
+                    line += f" | {exp['dist_um']:.0f} um from monolayer"
+                self.exp_nav.setText(line)
+                self.exp_nav.setStyleSheet(
+                    f"color:{colour}; font-size:12px; font-weight:bold;")
+
         if self.scan_map is not None:
             if self.mosaic is not None:
                 ov = self.mosaic.overview()

@@ -451,6 +451,46 @@ gain row/row_direction); capture worker preview carries raster hints into
 the HUD (RASTER: ... line); configs/live.yaml `raster:` section. Motors
 never controlled - human assistant only.
 
+**Phase 13 - high-magnification revisit / monolayer-only exploration
+(2026-10-12):** `src/live/survey.py` - the low-mag survey becomes a FROZEN
+reference for high-mag work. FINALIZE SURVEY MAP (GUI button) packages
+mosaic + coverage + monolayer mask/conf + placements/transforms +
+calibration + session metadata into `<session>/survey_final/`
+(survey.json manifest embeds the limitations text); restart-safe via
+load_survey(). Calibration: pixels_per_micron PER OBJECTIVE in
+configs/live.yaml `survey:` (shipped as honest `estimated` values - the
+objective RATIO drives the coordinate transform, so map math stays
+self-consistent until a stage-micrometer calibration). Exploration:
+ExplorationManager owns the frozen survey + active objective; when a
+non-reference objective is active, feature workers route fields to the
+exploration path - chain registration among SAME-mag frames (own
+GlobalPoseTracker), then pose_survey = anchor + chain_delta x
+(ppm_ref/ppm_high), containment vs the frozen green mask = INSIDE /
+NEAR EDGE / OUTSIDE + unit guidance vector + distance in um to the
+nearest monolayer cell. High-mag fields NEVER enter the live survey map
+or mosaic (frozen reference untouched). Relocalization (RELOCATE HERE):
+live frame rescaled by the calibration ratio, template-matched against
+the frozen mosaic; success re-anchors the chain, failure reports
+POSITION UNKNOWN (never guesses). Revisit points strictly inside the
+frozen mask: grid / top_confidence / centroid, listed in um, drawn as
+numbered magenta markers with an active target. GUI: HIGH-MAG
+EXPLORATION section (objective combo + px/um + FOV readout, FINALIZE,
+navigation state line, GENERATE/GO TO NEXT/RELOCATE). exploration_log.csv
+per session. docs/phase13_limitations.md documents image-only-pose limits
+(slide removal/rotation invalidates the map; stage encoders are the
+long-term pose source). TWO LATENT GUI CRASH BUGS fixed on the way
+(spotted by the new offscreen GUI smoke test): scan_map_panel
+set_semantic used QImage with no import (first analyzed field would quit
+the app via the excepthook), and _panel_tick called a nonexistent
+set_boundary(); also _run_selftest referenced an undefined `mosaic` at
+shutdown and --view-only referenced undefined tracker/raster. Tests:
+scripts/test_phase13.py (finalize/load round-trip, containment
+inside/near/outside + guidance direction, all revisit modes land on
+green cells with separation, relocalizer sub-pixel hit + blank-frame
+rejection, high-mag transform INSIDE/OUTSIDE + frozen-map invariance,
+worker wiring) + 45s video selftest regression + full GUI smoke
+(ticks -> finalize -> generate -> goto -> relocate).
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration
@@ -458,6 +498,10 @@ never controlled - human assistant only.
    it's purely for Phase 4.
 2. **Calibrate** the prototype count gate (950–1050) and score weights from those
    labels — replacing every "experimental prototype" value in the configs.
-3. Test `--cellpose-mode hybrid` (screen-gated Cellpose) once labels exist.
-4. Multiple sweeps / slide-map panel (scan history already records position → score).
-5. Only after live classification is stable: navigation control (out of scope today).
+3. Calibrate `survey.objectives` pixels_per_micron with a stage micrometer
+   (replaces the `estimated` flag per objective).
+4. Test `--cellpose-mode hybrid` (screen-gated Cellpose) once labels exist.
+5. High-mag classification thresholds are low-mag values - re-tune with
+   high-mag labels before trusting exploration classes.
+6. Motorized stage (out of scope): replace image-registration poses with
+   encoder coordinates behind the same map/classification system.

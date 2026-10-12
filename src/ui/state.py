@@ -94,6 +94,9 @@ class SharedState:
     nav_score: Optional[float] = None
     nav_transitions: List[Dict] = field(default_factory=list)
 
+    # high-mag exploration (Phase 13): containment + pose vs frozen survey
+    exploration: Dict = field(default_factory=dict)
+
     # session bookkeeping
     session_dir: Optional[str] = None
     session_settings: Dict = field(default_factory=dict)
@@ -149,6 +152,7 @@ class SharedState:
                 "analysis_count": self.analysis_count,
                 "view_job_id": self.view_job_id,
                 "source_error": self.source_error,
+                "exploration": dict(self.exploration),
             }
 
     def set_frame(self, frame: np.ndarray, seq: int, capture_fps: float,

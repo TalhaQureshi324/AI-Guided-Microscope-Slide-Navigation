@@ -511,7 +511,7 @@ class FeatureWorker(threading.Thread):
                  jobmgr: JobManager, maskq: _MaskQueue, session=None,
                  smoother: Optional[TemporalSmoother] = None,
                  scan_map=None, nav_machine=None, tracker=None,
-                 mosaic=None) -> None:
+                 mosaic=None, exploration=None) -> None:
         super().__init__(name=worker_id, daemon=True)
         self.worker_id = worker_id
         self.state = state
@@ -523,6 +523,7 @@ class FeatureWorker(threading.Thread):
         self.nav_machine = nav_machine  # shared Phase 2 state machine
         self.tracker = tracker          # shared Phase 7 global pose tracker
         self.mosaic = mosaic            # shared Phase 9 RGB mosaic builder
+        self.exploration = exploration  # Phase 13 high-mag exploration
         self.smoother = smoother or TemporalSmoother(
             alpha=cfg.get("temporal_alpha", 0.4),
             window=cfg.get("temporal_window", 5),
@@ -627,6 +628,18 @@ class FeatureWorker(threading.Thread):
         job.features_ms = features_ms
         job.t_end = time.perf_counter()
         self.jobmgr.mark(job, COMPLETE, self.worker_id)
+
+        # ---- Phase 13: high-mag exploration path --------------------------
+        # survey frozen + non-reference objective: pose = anchor + calibrated
+        # chain delta (§4), containment vs the frozen monolayer mask (§5).
+        # NEVER chain-registers into the low-mag survey or feeds the nav
+        # machine / map / mosaic - the frozen reference stays untouched (§1).
+        if self.exploration is not None and self.exploration.should_handle():
+            self.exploration.process_field(job, st)
+            logger_a.info("exploration job #%d [%s] %s", job.job_id,
+                          job.features.get("exploration_state", "?"),
+                          job.features.get("exploration_pose_um", ""))
+            return
 
         # ---- Phase 7: register the field into the global slide frame ------
         reg = None

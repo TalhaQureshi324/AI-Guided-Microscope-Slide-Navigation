@@ -166,6 +166,26 @@ raster:
   vertical_target_max: 0.30
   auto_alternate: true                # sweep 1 L2R, sweep 2 R2L, ...
 
+# ---- high-mag exploration (Phase 13) -----------------------------------------
+# FINALIZE SURVEY MAP freezes the low-mag survey into survey_final/ (mosaic,
+# coverage, monolayer mask, placements/transforms, calibration). After that,
+# higher objectives reuse the SAME physical slide coordinates:
+#   physical_um = scan_px * pixels_per_micron(reference objective).
+# pixels_per_micron values below are ESTIMATES until calibrated with a stage
+# micrometer - the objective RATIOS (what the coordinate transform uses) are
+# what matter most; edit them after calibration, per objective/setup.
+survey:
+  reference_objective: "10x"          # objective the survey was mapped with
+  objectives:
+    "10x": {pixels_per_micron: 1.0, source: estimated}
+    "40x": {pixels_per_micron: 4.0, source: estimated}
+  near_edge_um: 120                   # INSIDE/NEAR EDGE band width (§5)
+  revisit_count: 6                    # points per GENERATE (§6)
+  revisit_min_sep_cells: 3.0          # min grid separation between points
+  relocate_match_width: 160           # template width for mosaic matching (§7)
+  relocate_min_response: 0.45         # below this = NOT FOUND (honest, §8)
+
+
 # ---- RGB mosaic (Phase 9) ----------------------------------------------------
 # The stitched smear image lives in scan coordinates (Phase 5 zoom rule
 # applies); semantic colors stay on the scan map, never in this canvas.

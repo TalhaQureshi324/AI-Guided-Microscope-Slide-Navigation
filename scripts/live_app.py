@@ -39,6 +39,7 @@ from src.live.mosaic import MosaicBuilder  # noqa: E402
 from src.live.raster import RasterNavigator  # noqa: E402
 from src.live.scan_map import ScanMap  # noqa: E402
 from src.live.session import LiveSession  # noqa: E402
+from src.live.survey import ExplorationManager  # noqa: E402
 from src.ui.state import SharedState  # noqa: E402
 from src.ui.workers import CaptureWorker, FeatureWorker, GPUWorker, _MaskQueue  # noqa: E402
 
@@ -75,7 +76,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def build_pool(state, cfg, jobmgr: JobManager, session=None, scan_map=None,
-               nav_machine=None, tracker=None, mosaic=None):
+               nav_machine=None, tracker=None, mosaic=None, exploration=None):
     """Configurable worker pool: N GPU Cellpose workers + M CPU feature
     workers over one job manager (spec §7/§10 - benchmark before raising)."""
     maskq = _MaskQueue(maxsize=8)
@@ -86,7 +87,7 @@ def build_pool(state, cfg, jobmgr: JobManager, session=None, scan_map=None,
     cpu = [
         FeatureWorker(f"cpu{i + 1}", state, cfg, jobmgr, maskq, session=session,
                       scan_map=scan_map, nav_machine=nav_machine, tracker=tracker,
-                      mosaic=mosaic)
+                      mosaic=mosaic, exploration=exploration)
         for i in range(int(cfg.get("cpu_feature_workers", 2)))
     ]
     return maskq, gpu, cpu
@@ -161,6 +162,10 @@ def main() -> int:
     session = None
     scan_map = None
     jobmgr = None
+    tracker = None
+    mosaic = None
+    raster = None
+    exploration = ExplorationManager(cfg)
     nav = NavigationStateMachine(
         enter_score=cfg.get("navigation", {}).get("enter_score", 0.65),
         exit_score=cfg.get("navigation", {}).get("exit_score", 0.45),
@@ -169,6 +174,7 @@ def main() -> int:
     )
     if args.view_only:
         # capture worker only (spec §5: prove the feed before Cellpose)
+        raster = RasterNavigator(cfg)
         capture = CaptureWorker(source, state, controller, cfg, None, session=None,
                                 tracker=tracker, raster=raster)
         capture.start()
@@ -189,7 +195,8 @@ def main() -> int:
                                 session=session, scan_map=scan_map, raster=raster)
         _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
                                                       scan_map=scan_map, nav_machine=nav,
-                                                      tracker=tracker, mosaic=mosaic)
+                                                      tracker=tracker, mosaic=mosaic,
+                                                      exploration=exploration)
         if cfg.get("record_enabled"):
             state.recording = True
         capture.start()
@@ -216,7 +223,7 @@ def main() -> int:
     win = MainWindow(state, controller, cfg, session=session,
                      view_only=args.view_only, jobmgr=jobmgr, scan_map=scan_map,
                      nav_machine=nav, tracker=tracker, mosaic=mosaic,
-                     raster=raster)
+                     raster=raster, exploration=exploration)
     if args.view_only:
         win.statusBar().showMessage("VIEW-ONLY mode: no Cellpose (camera check)")
     win.show()
@@ -225,6 +232,10 @@ def main() -> int:
         exports = mosaic.export(session_dir / "mosaic_exports")
     if scan_map is not None and session is not None:
         session.save_scan_map(scan_map)
+    if exploration is not None:
+        log_p = exploration.save_log(session_dir)
+        if log_p:
+            print(f"exploration log -> {log_p}")
     _shutdown(state, session_dir, session)
     return rc
 
@@ -250,7 +261,10 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
     scan_map = ScanMap(cfg)
     tracker = GlobalPoseTracker(cfg)
     state.tracker = tracker
+    mosaic = MosaicBuilder(
+        feather_fraction=float(cfg.get("mosaic_feather_fraction", 0.15)))
     raster = RasterNavigator(cfg)
+    exploration = ExplorationManager(cfg)
     nav = NavigationStateMachine(
         enter_score=cfg.get("navigation", {}).get("enter_score", 0.65),
         exit_score=cfg.get("navigation", {}).get("exit_score", 0.45),
@@ -265,7 +279,8 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
                             session=session, scan_map=scan_map, raster=raster)
     _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
                                                   scan_map=scan_map, nav_machine=nav,
-                                                  tracker=tracker)
+                                                  tracker=tracker, mosaic=mosaic,
+                                                  exploration=exploration)
     t0 = time.perf_counter()
     capture.start()
     for w in gpu_workers + cpu_workers:
@@ -312,8 +327,9 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
         w.join(timeout=10)
     elapsed = time.perf_counter() - t0
     session.save_scan_map(scan_map)
-    if mosaic is not None:
-        mosaic.export(session_dir / "mosaic_exports")
+    mosaic.export(session_dir / "mosaic_exports")
+    if exploration is not None:
+        exploration.save_log(session_dir)
     summary = session.write_summary(state, elapsed, jobmgr=jobmgr)
     summary["scan_map_fields"] = len(scan_map.fields())
     summary["mosaic_placements"] = len(mosaic.placements()) if mosaic else 0
