@@ -72,13 +72,21 @@ class FieldFootprint:
 class ScanMap:
     """Thread-safe registry of analyzed field footprints."""
 
-    def __init__(self) -> None:
+    def __init__(self, cfg: Optional[Dict] = None) -> None:
+        cfg = cfg or {}
+        self.cfg = cfg                     # full config: nav enter/exit etc.
+        navcfg = cfg.get("navigation", {})
+        self.enter_votes = max(1, int(navcfg.get("enter_consecutive_fields", 2)))
         self._lock = threading.Lock()
         self._fields: List[FieldFootprint] = []
         self._by_job: Dict[int, FieldFootprint] = {}
         self._version = 0                 # bumps on every survey change
         self._boundary_cache: Dict[tuple, tuple] = {}
         self._coverage_cache: Dict[tuple, tuple] = {}
+        self._semantic_cache: Dict[tuple, tuple] = {}
+        # Phase 11: persistent per-cell hysteresis state (True = green)
+        self._cell_green: Dict[Tuple[int, int], bool] = {}
+        self._cell_geom: Optional[Tuple[float, float, float]] = None
         # Phase 6: multi-sweep trajectories in ONE map coordinate system
         self._sweeps: List[Dict] = []     # Sweep dicts (id, direction, start...)
         self._current_sweep: Optional[Dict] = None
@@ -397,11 +405,147 @@ class ScanMap:
         return {"version": version, "coverage_pct": round(scanned / total, 4),
                 "holes": holes, "cell": cell}
 
+    def semantic_grid(self, cell_fraction: float = 0.125,
+                      green_conf_thr: float = 0.5,
+                      min_votes: int = 2,
+                      monolayer_weight: float = 1.0,
+                      other_weight: float = 1.0,
+                      strong_single_thr: float = 0.75,
+                      force: bool = False) -> tuple:
+        """Phase 11: cell-level monolayer confidence map + green boundary.
+
+        Every REGISTERED field contributes evidence to each grid cell it
+        covers, weighted by registration confidence and observation type:
+          mono_sum  += monolayer_weight * field.score   if class == MONOLAYER
+          weight    += other_weight                     otherwise
+        monolayer_confidence = mono_sum / weight  (0..1 per cell).
+
+        GREEN mask = cells with >= min_votes observations AND
+        monolayer_confidence >= green_conf_thr - one borderline field can
+        never paint a huge green area (cell-level hysteresis), and evidence
+        fusion is configurable (spec Phase 11 §2/§3).
+
+        Conflicting cells (both green and non-green observations) are
+        returned separately and flagged CONFLICTING EVIDENCE, never erased.
+
+        Also returns the outer boundary contours of the connected green
+        region (same extraction as Phase 4). Cached per survey version.
+        Returns (version, ox, oy, cell, green, conf_img, conflicts, contours).
+        """
+        key = ("semantic", round(cell_fraction, 4), round(green_conf_thr, 2),
+               min_votes, round(monolayer_weight, 2), round(other_weight, 2))
+        with self._lock:
+            if not force:
+                cached = self._semantic_cache.get(key)
+                if cached is not None and cached[0] == self._version:
+                    return cached
+            fields = list(self._fields)
+            version = self._version
+        if not fields:
+            with self._lock:
+                self._semantic_cache[key] = (version, 0.0, 0.0, 0.0, None, None, [], [])
+            return version, 0.0, 0.0, 0.0, None, None, [], []
+
+        import cv2
+        from scipy import ndimage
+        cell = max(1.0, float(np.median([f.w for f in fields])) * cell_fraction)
+        pad = 1
+        x0 = min(f.x - f.w / 2 for f in fields) - pad * cell
+        y0 = min(f.y - f.h / 2 for f in fields) - pad * cell
+        x1 = max(f.x + f.w / 2 for f in fields) + pad * cell
+        y1 = max(f.y + f.h / 2 for f in fields) + pad * cell
+        gw = max(1, int(math.ceil((x1 - x0) / cell)))
+        gh = max(1, int(math.ceil((y1 - y0) / cell)))
+        mono_sum = np.zeros((gh, gw), dtype=np.float64)
+        weight = np.zeros((gh, gw), dtype=np.float64)
+        votes = np.zeros((gh, gw), dtype=np.float64)
+        mono_votes = np.zeros((gh, gw), dtype=np.float64)
+        non_votes = np.zeros((gh, gw), dtype=np.float64)
+        for f in fields:
+            conf_w = max(0.1, min(1.0, f.reg_confidence)) if f.reg_confidence else 0.5
+            fx0 = max(0, int(math.floor((f.x - f.w / 2 - x0) / cell)))
+            fy0 = max(0, int(math.floor((f.y - f.h / 2 - y0) / cell)))
+            fx1 = min(gw, int(math.ceil((f.x + f.w / 2 - x0) / cell)))
+            fy1 = min(gh, int(math.ceil((f.y + f.h / 2 - y0) / cell)))
+            if fx1 <= fx0 or fy1 <= fy0:
+                continue
+            is_mono = f.raw_class == "MONOLAYER"
+            if is_mono:
+                mono_sum[fy0:fy1, fx0:fx1] += monolayer_weight * conf_w * float(f.score)
+                mono_votes[fy0:fy1, fx0:fx1] += monolayer_weight * conf_w
+                weight[fy0:fy1, fx0:fx1] += monolayer_weight * conf_w
+            else:
+                weight[fy0:fy1, fx0:fx1] += other_weight * conf_w
+                non_votes[fy0:fy1, fx0:fx1] += other_weight * conf_w
+            votes[fy0:fy1, fx0:fx1] += 1.0
+        with np.errstate(invalid="ignore", divide="ignore"):
+            conf_img = np.where(weight > 0, mono_sum / np.maximum(weight, 1e-9), 0.0)
+
+        # ---- cell-level hysteresis (spec Phase 11 §3): mirrors the
+        # navigation state machine - ENTER at enter_score with enough
+        # support, LEAVE at the lower exit threshold; a strongly confirmed
+        # single field may enter alone, one borderline field may not.
+        enter_thr = float(self.cfg.get("navigation", {}).get(
+            "enter_score", 0.65))
+        exit_thr = float(self.cfg.get("navigation", {}).get(
+            "exit_score", 0.45))
+        strong_single = float(self.cfg.get("strong_single_thr", 0.75))
+
+        geom = (x0, y0, cell)
+        if self._cell_geom != geom:
+            self._cell_green.clear()   # grid geometry changed: state void
+            self._cell_geom = geom
+        state_arr = np.zeros((gh, gw), dtype=bool)
+        for (r, c), was_green in list(self._cell_green.items()):
+            if 0 <= r < gh and 0 <= c < gw:
+                state_arr[r, c] = was_green
+
+        observed = votes > 0
+        entered = observed & (conf_img >= max(enter_thr, strong_single))
+        entered |= observed & (conf_img >= enter_thr) &             ((mono_votes >= self.enter_votes) | (non_votes == 0) &
+             (conf_img >= strong_single))
+        left = observed & (conf_img < exit_thr)
+        state_arr = np.where(entered & ~left, True,
+                             np.where(left, False, state_arr))
+        self._cell_green.clear()
+        for r, c in zip(*np.where(observed)):
+            self._cell_green[(int(r), int(c))] = bool(state_arr[r, c])
+
+        green = state_arr
+        green = ndimage.binary_closing(green, structure=np.ones((3, 3), dtype=bool))
+        conflict = observed & (conf_img < enter_thr) & (mono_votes > 0) &                    (non_votes > 0)
+
+        # outer contours of the connected green region -> scan coordinates
+        green_u8 = green.astype(np.uint8) * 255
+        contours_scan: List[List[Tuple[float, float]]] = []
+        found = cv2.findContours(green_u8, cv2.RETR_EXTERNAL,
+                                 cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in found[0] if isinstance(found, tuple) else found:
+            pts = [(x0 + (float(pt[0][0]) + 0.5) * cell,
+                    y0 + (float(pt[0][1]) + 0.5) * cell) for pt in cnt]
+            if len(pts) >= 3:
+                contours_scan.append(pts)
+
+        conflicts = []
+        cys, cxs = np.where(conflict)
+        for cy, cx in zip(cys, cxs):
+            conflicts.append({"x": round(x0 + (cx + 0.5) * cell, 1),
+                              "y": round(y0 + (cy + 0.5) * cell, 1),
+                              "conf": round(float(conf_img[cy, cx]), 3)})
+
+        with self._lock:
+            out = (version, x0, y0, cell, green, conf_img, conflicts,
+                   contours_scan)
+            self._semantic_cache[key] = out
+            return out
+
     def invalidate_caches(self) -> None:
         with self._lock:
             self._version += 1
             self._boundary_cache.clear()
             self._coverage_cache.clear()
+            self._semantic_cache.clear()
+            self._semantic_cache.clear()
 
     # ------------------------------------------------------------------
     # Phase 4: continuous monolayer region + outer boundary
@@ -503,6 +647,8 @@ class ScanMap:
             self._version += 1
             self._boundary_cache.clear()
             self._coverage_cache.clear()
+            self._semantic_cache.clear()
+            self._semantic_cache.clear()
 
     # ------------------------------------------------------------------
     def bounds(self, extra_points: Optional[List[Tuple[float, float]]] = None

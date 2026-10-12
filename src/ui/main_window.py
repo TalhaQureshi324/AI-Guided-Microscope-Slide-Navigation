@@ -622,6 +622,24 @@ class MainWindow(QMainWindow):
             self.scan_map_panel.set_holes(
                 [(hd["x"], hd["y"], hd["w"], hd["h"]) for hd in cov["holes"]])
             self._coverage_stats = cov
+            # Phase 11: semantic green mask + boundary (cached per version)
+            s_ver, sx0, sy0, s_cell, green, _conf_img, conflicts, s_cont =                 self.scan_map.semantic_grid(
+                    cell_fraction=float(self.cfg.get("semantic_cell_fraction",
+                                                     0.125)),
+                    green_conf_thr=float(self.cfg.get("semantic_green_conf_thr",
+                                                      0.5)),
+                    min_votes=int(self.cfg.get("semantic_min_votes", 2)),
+                    strong_single_thr=float(self.cfg.get(
+                        "semantic_strong_single_thr", 0.75)),
+                    monolayer_weight=float(self.cfg.get(
+                        "semantic_monolayer_weight", 1.0)),
+                    other_weight=float(self.cfg.get("semantic_other_weight",
+                                                    1.0)))
+            self.scan_map_panel.set_semantic(green if green is not None else
+                                             np.zeros((2, 2), dtype=bool),
+                                             sx0, sy0, s_cell, conflicts)
+            self.scan_map_panel.set_boundary(
+                s_ver, s_cont if s_cont else boundary)
             self.scan_map_panel.set_data(
                 self.scan_map.fields(), mono_rects,
                 self.state.current_net(),

@@ -129,6 +129,21 @@ manual_analysis:
   detailed_features: true      # manual captures always get the full treatment
   merge_analysis: true         # incl. DT merge suspects (orange outlines)
 
+# ---- semantic monolayer confidence grid (Phase 11) ---------------------------
+# Every registered field contributes evidence to the cells it covers,
+# weighted by registration confidence: MONOLAYER fields push the cell
+# toward green with their score; other classes dilute it. Green mask
+# requires >= min_votes observations AND conf >= green threshold - a
+# single borderline field can never paint a huge green area. The map
+# reflects accumulated evidence; revisits that disagree flag CONFLICTING
+# EVIDENCE instead of silently erasing.
+semantic:
+  cell_fraction: 0.125
+  green_conf_thr: 0.5
+  min_votes: 2
+  monolayer_weight: 1.0
+  other_weight: 1.0
+
 # ---- coverage / overlap controller (Phase 8) ---------------------------------
 # Experimental target band for overlap IN THE DIRECTION OF TRAVEL between
 # neighboring captures. Not hard-coded; recalibrate with labeled scans.

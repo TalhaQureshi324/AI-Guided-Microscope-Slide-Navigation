@@ -97,11 +97,15 @@ def build_cfg(args) -> dict:
     analysis = cfg.get("analysis", {})
     cfg.setdefault("gpu_workers", analysis.get("gpu_workers", 1))
     cfg.setdefault("cpu_feature_workers", analysis.get("cpu_feature_workers", 2))
-    # flatten coverage block (Phase 8)
+    # flatten coverage (Phase 8) + semantic (Phase 11) blocks for the workers
     cov = cfg.get("coverage", {})
     for k in ("target_overlap_min", "target_overlap_max",
               "duplicate_overlap_threshold", "gap_risk_threshold"):
         cfg.setdefault(k, cov.get(k))
+    sem = cfg.get("semantic", {})
+    for k in ("cell_fraction", "green_conf_thr", "min_votes",
+              "monolayer_weight", "other_weight"):
+        cfg.setdefault("semantic_" + k, sem.get(k))
     if args.source:
         cfg["source"] = args.source
     if args.cellpose_mode:
@@ -170,7 +174,7 @@ def main() -> int:
     else:
         jobmgr = JobManager(max_manual_queue=cfg.get("max_manual_queue", 20))
         state.jobmgr = jobmgr
-        scan_map = ScanMap()
+        scan_map = ScanMap(cfg)
         state.nav_machine = nav
         tracker = GlobalPoseTracker(cfg)
         state.tracker = tracker
@@ -240,7 +244,7 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
     source = make_source(cfg["source"], cfg)
     jobmgr = JobManager(max_manual_queue=cfg.get("max_manual_queue", 20))
     state.jobmgr = jobmgr
-    scan_map = ScanMap()
+    scan_map = ScanMap(cfg)
     tracker = GlobalPoseTracker(cfg)
     state.tracker = tracker
     nav = NavigationStateMachine(

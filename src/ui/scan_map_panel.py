@@ -38,6 +38,9 @@ class ScanMapPanel(QWidget):
         self._sweeps: List[dict] = []
         self._sweep_trails: List[List[Tuple[float, float]]] = []
         self._holes: List[Tuple[float, float, float, float]] = []
+        self._green_qimg = None
+        self._green_rect_scan: Optional[tuple] = None
+        self._conflicts: List[Tuple[float, float]] = []
         self._mosaic_qimg = None
         self._mosaic_rect_scan: Optional[tuple] = None
         self._pending_mosaic = None
@@ -125,6 +128,21 @@ class ScanMapPanel(QWidget):
 
     def set_fov(self, fov_wh: Tuple[float, float]) -> None:
         self._fov_wh = fov_wh
+
+    def set_semantic(self, green_mask: np.ndarray, origin_x: float,
+                     origin_y: float, cell: float,
+                     conflicts: List[Dict]) -> None:
+        """Phase 11: semantic green mask + conflict cells (scan coords).
+        green_mask[cell_y, cell_x] = True where monolayer is confirmed."""
+        h, w = green_mask.shape[:2]
+        rgb = np.zeros((h, w, 3), dtype=np.uint8)
+        rgb[green_mask] = (46, 204, 113)          # flat green semantic color
+        self._green_qimg = QImage(rgb.data, w, h, 3 * w,
+                                  QImage.Format.Format_RGB888).copy()
+        self._green_rect_scan = (origin_x, origin_y,
+                                 origin_x + w * cell, origin_y + h * cell)
+        self._conflicts = list(conflicts)
+        self.update()
 
     def set_holes(self, holes: List[Tuple[float, float, float, float]]) -> None:
         """Interior UNSCANNED gaps as (cx, cy, w, h) scan-coord tuples - Phase 10 §2."""
@@ -225,6 +243,16 @@ class ScanMapPanel(QWidget):
             p1x, p1y = to_px(mrect[2], mrect[3])
             p.drawImage(QRectF(p0x, p0y, p1x - p0x, p1y - p0y), self._mosaic_qimg)
 
+        # ---- Phase 11: semantic green mask (translucent, under everything) ----
+        gq = getattr(self, "_green_qimg", None)
+        grect = getattr(self, "_green_rect_scan", None)
+        if gq is not None and grect:
+            gp0x, gp0y = to_px(grect[0], grect[1])
+            gp1x, gp1y = to_px(grect[2], grect[3])
+            p.setOpacity(0.45)
+            p.drawImage(QRectF(gp0x, gp0y, gp1x - gp0x, gp1y - gp0y), gq)
+            p.setOpacity(1.0)
+
         # ---- Phase 6: sweep trajectories (faint polylines + start markers) ----
         for si, trail in enumerate(self._sweep_trails, start=1):
             if len(trail) >= 2:
@@ -308,6 +336,13 @@ class ScanMapPanel(QWidget):
                 if len(pts_px) >= 2:
                     for (ax, ay), (bx, by) in zip(pts_px, pts_px[1:] + pts_px[:1]):
                         p.drawLine(int(ax), int(ay), int(bx), int(by))
+
+        # ---- Phase 11: CONFLICTING EVIDENCE markers (amber rings) ----
+        for c in getattr(self, "_conflicts", []) or []:
+            cx0, cy0 = to_px(c["x"], c["y"])
+            p.setPen(QPen(QColor(250, 190, 40), 2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawEllipse(int(cx0) - 5, int(cy0) - 5, 10, 10)
 
         # ---- current live scan position (crosshair) ----
         if self._current:

@@ -356,6 +356,72 @@ class GlobalPoseTracker:
                 best = (cand, dx, dy, conf, state)
         return best
 
+    def preview_coverage(self, frame_bgr: np.ndarray, sweep_off_x: float,
+                         sweep_off_y: float, scan_map=None) -> Dict:
+        """Read-only live overlap preview for operator guidance (spec §7).
+
+        Registers the current live frame against the last GOOD field (phase
+        correlation only - no commitment) and evaluates footprint coverage
+        vs the scanned union. Returns a plain dict for the GUI:
+        state / overlap fractions / move hint / confidence.
+        """
+        try:
+            prep, raw_std = prep_frame(frame_bgr, self.work_width)
+        except Exception:  # noqa: BLE001
+            return {"state": "REGISTRATION UNCERTAIN"}
+        with self._lock:
+            ref = None
+            if self._last_good_id is not None and self._last_good_id in self._fields:
+                ref = self._fields[self._last_good_id]
+        if ref is None:
+            return {"state": "FIRST_FIELD", "overlap_prev_pct": 0.0,
+                    "overlap_total_pct": 0.0, "new_coverage_pct": 1.0}
+        if raw_std < float(self.cfg.get("registration", self).get(
+                "texture_min_std", 3.0)):
+            return {"state": "REGISTRATION UNCERTAIN", "overlap_prev_pct": 0.0}
+
+        scale_full = 1.0 / (self.work_width / float(frame_bgr.shape[1]))
+        dx, dy, resp = _phase_corr(ref.prep, prep, 1.0)
+        dx *= scale_full; dy *= scale_full
+        conf = min(1.0, max(0.0, resp))
+        cand_pose = (ref.pose[0] + dx, ref.pose[1] + dy)
+
+        from src.live.coverage import ExistingFootprint, evaluate_coverage
+        h, w = frame_bgr.shape[:2]
+        cand_rect = (cand_pose[0] - w / 2, cand_pose[1] - h / 2,
+                     cand_pose[0] + w / 2, cand_pose[1] + h / 2)
+        existing = [
+            ExistingFootprint((f.x - f.w / 2, f.y - f.h / 2,
+                               f.x + f.w / 2, f.y + f.h / 2),
+                              f.job_id, f.reg_confidence, f.human_label)
+            for f in scan_map.active_fields() if f.job_id != -1
+        ] if scan_map is not None else []
+        rep = evaluate_coverage(
+            cand_rect, existing,
+            target_overlap_min=float(self.cfg.get("target_overlap_min", 0.20)),
+            target_overlap_max=float(self.cfg.get("target_overlap_max", 0.30)),
+            duplicate_overlap_threshold=float(self.cfg.get(
+                "duplicate_overlap_threshold", 0.90)),
+            gap_risk_threshold=float(self.cfg.get("gap_risk_threshold", 0.35)),
+        )
+        out = {
+            "state": rep.state,
+            "overlap_prev_pct": rep.overlap_prev_pct,
+            "overlap_total_pct": rep.overlap_total_pct,
+            "new_coverage_pct": rep.new_coverage_pct,
+            "duplicate_pct": rep.duplicate_pct,
+            "best_job_id": rep.best_job_id,
+            "best_reg_conf": (existing[0].reg_confidence if existing else 1.0),
+            "reg_conf": conf,
+            "dir_x": dx, "dir_y": dy,
+        }
+        from src.live.coverage import movement_hint
+        out["move_hint"] = movement_hint(
+            rep.overlap_prev_pct,
+            float(self.cfg.get("target_overlap_min", 0.20)),
+            float(self.cfg.get("target_overlap_max", 0.30)), dx, dy)
+        return out
+
     # ------------------------------------------------------------------
     def poses(self) -> Dict[int, Tuple[float, float]]:
         with self._lock:
