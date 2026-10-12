@@ -155,6 +155,17 @@ coverage:
   preview_every_n_frames: 5
   skip_duplicate_auto: true           # Phase 8 §5: don't waste Cellpose
 
+# ---- raster / multi-sweep navigation (Phase 12) -------------------------------
+# Human navigation assistant for a boustrophedon (lawnmower) pattern:
+# row sweeps alternate direction; vertical STEP DOWN between rows targets
+# its own overlap band. Motors are never controlled.
+raster:
+  target_overlap_min: 0.20            # horizontal, within a row
+  target_overlap_max: 0.30
+  vertical_target_min: 0.15           # vertical, when stepping down a row
+  vertical_target_max: 0.30
+  auto_alternate: true                # sweep 1 L2R, sweep 2 R2L, ...
+
 # ---- RGB mosaic (Phase 9) ----------------------------------------------------
 # The stitched smear image lives in scan coordinates (Phase 5 zoom rule
 # applies); semantic colors stay on the scan map, never in this canvas.

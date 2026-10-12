@@ -36,6 +36,7 @@ from src.live.jobs import JobManager  # noqa: E402
 from src.live.nav_state import NavigationStateMachine  # noqa: E402
 from src.live.registration import GlobalPoseTracker  # noqa: E402
 from src.live.mosaic import MosaicBuilder  # noqa: E402
+from src.live.raster import RasterNavigator  # noqa: E402
 from src.live.scan_map import ScanMap  # noqa: E402
 from src.live.session import LiveSession  # noqa: E402
 from src.ui.state import SharedState  # noqa: E402
@@ -169,7 +170,7 @@ def main() -> int:
     if args.view_only:
         # capture worker only (spec §5: prove the feed before Cellpose)
         capture = CaptureWorker(source, state, controller, cfg, None, session=None,
-                                tracker=tracker)
+                                tracker=tracker, raster=raster)
         capture.start()
     else:
         jobmgr = JobManager(max_manual_queue=cfg.get("max_manual_queue", 20))
@@ -180,11 +181,12 @@ def main() -> int:
         state.tracker = tracker
         mosaic = MosaicBuilder(
             feather_fraction=float(cfg.get("mosaic_feather_fraction", 0.15)))
+        raster = RasterNavigator(cfg)
         session = LiveSession(session_dir, cfg, cfg["source"], settings={})
         state.session_dir = str(session_dir)
         state.source_label = source.name
         capture = CaptureWorker(source, state, controller, cfg, jobmgr,
-                                session=session, scan_map=scan_map)
+                                session=session, scan_map=scan_map, raster=raster)
         _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
                                                       scan_map=scan_map, nav_machine=nav,
                                                       tracker=tracker, mosaic=mosaic)
@@ -213,7 +215,8 @@ def main() -> int:
 
     win = MainWindow(state, controller, cfg, session=session,
                      view_only=args.view_only, jobmgr=jobmgr, scan_map=scan_map,
-                     nav_machine=nav, tracker=tracker, mosaic=mosaic)
+                     nav_machine=nav, tracker=tracker, mosaic=mosaic,
+                     raster=raster)
     if args.view_only:
         win.statusBar().showMessage("VIEW-ONLY mode: no Cellpose (camera check)")
     win.show()
@@ -247,6 +250,7 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
     scan_map = ScanMap(cfg)
     tracker = GlobalPoseTracker(cfg)
     state.tracker = tracker
+    raster = RasterNavigator(cfg)
     nav = NavigationStateMachine(
         enter_score=cfg.get("navigation", {}).get("enter_score", 0.65),
         exit_score=cfg.get("navigation", {}).get("exit_score", 0.45),
@@ -258,7 +262,7 @@ def _run_selftest(state, controller, session_dir, args, cfg, source):
     state.session_dir = str(session_dir)
     state.source_label = source.name
     capture = CaptureWorker(source, state, controller, cfg, jobmgr,
-                            session=session, scan_map=scan_map)
+                            session=session, scan_map=scan_map, raster=raster)
     _maskq, gpu_workers, cpu_workers = build_pool(state, cfg, jobmgr, session,
                                                   scan_map=scan_map, nav_machine=nav,
                                                   tracker=tracker)

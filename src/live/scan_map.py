@@ -96,7 +96,8 @@ class ScanMap:
     # Phase 6: multi-sweep trajectories (same map, anchored new sweeps)
     # ------------------------------------------------------------------
     def start_sweep(self, t: float, current_x: float, current_y: float,
-                    anchor_job_id: Optional[int] = None) -> Optional[Dict]:
+                    anchor_job_id: Optional[int] = None,
+                    row_direction: Optional[str] = None) -> Optional[Dict]:
         """Begin a new sweep trajectory on the SAME map.
 
         The new sweep's starting position equals the current live position
@@ -114,6 +115,8 @@ class ScanMap:
             self._sweep_offset = offset
             sweep = {
                 "sweep_id": len(self._sweeps) + 1,
+                "row": len(self._sweeps) + 1,
+                "row_direction": row_direction or "-",
                 "started_at": t,
                 "direction": "-",
                 "start_x": round(current_x + offset[0], 1),

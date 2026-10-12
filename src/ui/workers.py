@@ -101,7 +101,7 @@ def _apply_coverage(job, preview: Optional[Dict]) -> None:
 class CaptureWorker(threading.Thread):
     def __init__(self, source, state: SharedState, controller: LiveFieldController,
                  cfg: Dict, jobmgr: JobManager, session=None, scan_map=None,
-                 tracker=None) -> None:
+                 tracker=None, raster=None) -> None:
         super().__init__(name="capture", daemon=True)
         self.source = source
         self.state = state
@@ -111,6 +111,7 @@ class CaptureWorker(threading.Thread):
         self.session = session
         self.scan_map = scan_map
         self.tracker = tracker   # Phase 7 poses for live coverage preview
+        self.raster = raster     # Phase 12 raster navigation assistant
         self.motion = MotionEstimator(_MOTION_WIDTH)
         self.screen = FastScreen(
             work_width=cfg.get("fast_screen_work_width", 480),
@@ -293,6 +294,14 @@ class CaptureWorker(threading.Thread):
                                                     self.scan_map)
             preview["dir_x"] = dx
             preview["dir_y"] = dy
+            if self.raster is not None and preview.get("state") not in (
+                    "FIRST_FIELD", "REGISTRATION UNCERTAIN"):
+                rh = self.raster.guidance(
+                    horizontal_overlap=preview.get("overlap_prev_pct", 0.0),
+                    vertical_overlap=preview.get("vertical_overlap", 0.0),
+                    moving_vertical=abs(dy) > abs(dx))
+                preview["raster_hint"] = rh["hint"]
+                preview["raster_phase"] = rh["phase"]
         with st.lock:
             if preview is not None:
                 st.preview = preview

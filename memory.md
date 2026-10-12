@@ -439,6 +439,18 @@ fusion stays conservative (Phase 3 layer already never overwrites).
 Semantic boundaries still never cross unscanned space (monolayer union has
 no interpolation; boundary closing is only 2 cells).
 
+**Phase 12 - raster/multi-sweep navigation assistant (2026-10-08):**
+`src/live/raster.py` - RasterNavigator: boustrophedon row tracking
+(LEFT_TO_RIGHT/RIGHT_TO_LEFT, alternating per row; row parity chosen for
+the row ABOUT to start), two phases (ROW_SWEEP: horizontal overlap in the
+20-30% band; STEP_DOWN: vertical overlap vs the previous row in the
+15-30% band), operator hints (MOVE RIGHT/LEFT/DOWN FARTHER/BACK, CAPTURE
+READY), and note_vertical_step() flipping direction when a new row lands
+in the vertical band. START NEW SWEEP drives it (scan_map sweep records
+gain row/row_direction); capture worker preview carries raster hints into
+the HUD (RASTER: ... line); configs/live.yaml `raster:` section. Motors
+never controlled - human assistant only.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration

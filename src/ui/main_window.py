@@ -61,7 +61,8 @@ def _np_to_qimage(frame_bgr: np.ndarray) -> QImage:
 class MainWindow(QMainWindow):
     def __init__(self, state: SharedState, controller: LiveFieldController,
                  cfg: Dict, session=None, view_only: bool = False, jobmgr=None,
-                 scan_map=None, nav_machine=None, tracker=None, mosaic=None):
+                 scan_map=None, nav_machine=None, tracker=None, mosaic=None,
+                 raster=None):
         super().__init__()
         self.state = state
         self.controller = controller
@@ -72,6 +73,7 @@ class MainWindow(QMainWindow):
         self.nav_machine = nav_machine
         self.tracker = tracker
         self.mosaic = mosaic
+        self.raster = raster
         self.view_only = view_only
         self._fov: Optional[Tuple[float, float]] = None
         self.ui_fps = 0.0
@@ -281,20 +283,25 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("snapshot will be saved (no Cellpose)", 2000)
 
     def _on_new_sweep(self):
-        """Phase 6: begin a new sweep trajectory, keeping the same slide map.
+        """Phase 6/12: begin a new sweep row, keeping the same slide map.
 
         Anchored to the selected completed job when one is chosen (the
-        operator declares the microscope is at that field's location)."""
+        operator declares the microscope is at that field's location). The
+        raster navigator alternates the row direction (boustrophedon)."""
         if self.scan_map is None:
             return
+        raster_dir = None
+        if self.raster is not None:
+            raster_dir = self.raster.start_sweep()["direction"]
         job = self._selected_completed_job()
         anchor = job.job_id if job is not None else None
         net_x, net_y = self.state.current_net()
         sweep = self.scan_map.start_sweep(time.perf_counter(), net_x, net_y,
-                                          anchor_job_id=anchor)
+                                          anchor_job_id=anchor,
+                                          row_direction=raster_dir)
         if sweep is not None:
             self.statusBar().showMessage(
-                f"sweep #{sweep['sweep_id']} started at map "
+                f"sweep #{sweep['sweep_id']} ({raster_dir}) started at map "
                 f"({sweep['start_x']:.0f}, {sweep['start_y']:.0f})"
                 + (f", anchored to job #{anchor}" if anchor else ""),
                 4000)
@@ -425,8 +432,10 @@ class MainWindow(QMainWindow):
             (f"fast screen: {snap['screen_result'] or '-'}", _GREY),
             (f"cellpose: {cp_txt}", (90, 170, 250) if cp == "PROCESSING" else _GREY),
         ]
-        # ---- Phase 8: live movement guidance ----
+        # ---- Phase 8/12: live movement guidance (coverage + raster) ----
         preview = getattr(self.state, "preview", {}) or {}
+        if preview.get("raster_hint"):
+            lines.append((f"RASTER: {preview['raster_hint']}", (170, 200, 250)))
         if preview.get("move_hint"):
             pv_state = preview.get("state", "")
             colour = ((80, 220, 130) if pv_state == "CAPTURE_READY"
