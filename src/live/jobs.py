@@ -84,6 +84,26 @@ class AnalysisJob:
     merge_analysis_ran: bool = False
     first_inference: bool = False
     queue_wait_ms: Optional[float] = None
+    # ---- spatial fields (Phase 7/8/10) -------------------------------------
+    # Explicit schema with defaults: a job is COMPLETE-marked BEFORE the
+    # registration section populates these, and the GUI job list can click a
+    # job in that window - the renderer must never hit AttributeError on a
+    # not-yet-registered job (2026-10-14 session crash).
+    reg_state: str = ""
+    reg_method: str = ""
+    reg_confidence: float = 0.0
+    reg_dx: float = 0.0
+    reg_dy: float = 0.0
+    reg_ref_job_id: int = -1
+    drift_warning: bool = False
+    coverage_state: str = ""
+    overlap_prev_pct: float = 0.0
+    overlap_total_pct: float = 0.0
+    new_coverage_pct: float = 0.0
+    duplicate_pct: float = 0.0
+    capture_type: str = "NORMAL"
+    duplicate_of: Optional[int] = None
+    revisit: bool = False
 
     @property
     def runtime_sec(self) -> float:
@@ -218,6 +238,11 @@ class JobManager:
         with self._lock:
             job = self.all_jobs.get(job_id)
             return job if (job is not None and job.status == COMPLETE) else None
+
+    def all_jobs_snapshot(self) -> List["AnalysisJob"]:
+        """Thread-safe list of every submitted job (for the spatial order gate)."""
+        with self._lock:
+            return list(self.all_jobs.values())
 
     def stats(self) -> Dict:
         with self._lock:

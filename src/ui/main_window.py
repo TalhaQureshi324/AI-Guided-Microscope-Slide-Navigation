@@ -549,7 +549,7 @@ class MainWindow(QMainWindow):
                  f"   coverage {(viewing_job.features or {}).get('coverage', 0) * 100:.0f}%"
                  f"   merge suspects {merges}{occ_txt}", _GREY),
             ]
-            if viewing_job.drift_warning:
+            if getattr(viewing_job, "drift_warning", False):
                 lines.append(("!! POSE DRIFT WARNING - revisit disagrees with chained pose",
                               (60, 90, 250)))
             if reg:
@@ -716,39 +716,20 @@ class MainWindow(QMainWindow):
                 v.setText("-")
             self.status_top.setText("no detailed result yet")
         else:
-            f = result.features
-            border = sum(1 for x in result.rows
+            # defensive: a COMPLETE-marked job reaches the registry before its
+            # result fields populate - never crash the tick on that window
+            f = result.features or {}
+            rows = result.rows or []
+            border = sum(1 for x in rows
                          if x.get("rbc_candidate") and x.get("touches_border"))
-            colour = _QT_COLORS.get(result.raw_class, "#ececec")
-            self._set("cellpose_instances", f.get("cellpose_instance_count"))
-            self._set("rbc_candidates", f.get("rbc_candidate_count"))
-            self._set("valid_region_rbc", f.get("valid_region_rbc_count"))
-            self._set("border_cells", border)
-            self._set("merge_suspects",
-                      f.get("merge_suspect_count") if result.merge_analysis_ran else "n/a (live mode)")
-            self._set("rbc_density", f"{f.get('rbc_density', float('nan')):.0f}")
-            self._set("coverage", f"{f.get('coverage', float('nan')) * 100:.1f}%")
-            self._set("normalized_nn", f"{f.get('normalized_median_nn', float('nan')):.2f}")
-            self._set("contact", f"{f.get('contact_ratio', float('nan')) * 100:.0f}%")
-            self._set("neighbors",
-                      f"0:{f.get('pct_0_neighbors', 0):.0f}% 1:{f.get('pct_1_neighbor', 0):.0f}% "
-                      f"2:{f.get('pct_2_neighbors', 0):.0f}% 3+: {f.get('pct_3plus_neighbors', 0):.0f}%")
-            self._set("degree", f"{f.get('mean_graph_degree', float('nan')):.2f}")
-            self._set("cluster", f"{f.get('largest_cluster_fraction', float('nan')) * 100:.0f}% of cells")
-            self._set("uniformity", f"{f.get('density_cv', float('nan')):.2f}")
-            self._set("score", f"{result.score:.3f}")
-            self._set("smoothed",
-                      "-" if result.smoothed_score is None else f"{result.smoothed_score:.3f}")
-            cls_display = ("STALE " if stale else "") + result.raw_class
-            self._set("raw_class", cls_display)
-            self.metrics["raw_class"].setStyleSheet(
-                f"color:{colour}; font-size:14px; font-weight:bold;")
-            self._set("smoothed_class", result.smoothed_class or ("n/a (stale)" if stale else "-"))
-            self._set("age", f"{age:.1f} s{'  [STALE]' if stale else ''}")
-            self._set("meta",
-                      f"job #{result.job_id} f{result.frame_idx} | {result.feature_mode} mode | "
-                      f"cellpose {(result.cellpose_ms or 0) / 1000:.1f}s | "
-                      f"features {(result.features_ms or 0) / 1000:.1f}s")
+            if result.raw_class is None or result.score is None:
+                self._set("raw_class", "analyzing ...")
+                self.metrics["raw_class"].setStyleSheet("color:#bdbdbd;")
+                self._set("age", "-")
+                self._set("meta",
+                          f"job #{result.job_id} queued for registration/results")
+            else:
+                self._render_result_metrics(result, f, border, stale, age)
 
         cp = snap["cellpose_state"]
         cp_txt = ("PROCESSING previous field ..." if cp == "PROCESSING"
@@ -885,6 +866,40 @@ class MainWindow(QMainWindow):
             f"ui {self.ui_fps:.0f} fps | motion {snap['motion_state']} | "
             f"cellpose {cp} | analyses {snap['analysis_count']}" + cov_line
         )
+
+    def _render_result_metrics(self, result, f: Dict, border: int,
+                               stale: bool, age) -> None:
+        """Sidebar metrics for one fully-analyzed result object."""
+        colour = _QT_COLORS.get(result.raw_class, "#ececec")
+        self._set("cellpose_instances", f.get("cellpose_instance_count"))
+        self._set("rbc_candidates", f.get("rbc_candidate_count"))
+        self._set("valid_region_rbc", f.get("valid_region_rbc_count"))
+        self._set("border_cells", border)
+        self._set("merge_suspects",
+                  f.get("merge_suspect_count") if result.merge_analysis_ran else "n/a (live mode)")
+        self._set("rbc_density", f"{f.get('rbc_density', float('nan')):.0f}")
+        self._set("coverage", f"{f.get('coverage', float('nan')) * 100:.1f}%")
+        self._set("normalized_nn", f"{f.get('normalized_median_nn', float('nan')):.2f}")
+        self._set("contact", f"{f.get('contact_ratio', float('nan')) * 100:.0f}%")
+        self._set("neighbors",
+                  f"0:{f.get('pct_0_neighbors', 0):.0f}% 1:{f.get('pct_1_neighbor', 0):.0f}% "
+                  f"2:{f.get('pct_2_neighbors', 0):.0f}% 3+: {f.get('pct_3plus_neighbors', 0):.0f}%")
+        self._set("degree", f"{f.get('mean_graph_degree', float('nan')):.2f}")
+        self._set("cluster", f"{f.get('largest_cluster_fraction', float('nan')) * 100:.0f}% of cells")
+        self._set("uniformity", f"{f.get('density_cv', float('nan')):.2f}")
+        self._set("score", f"{result.score:.3f}")
+        self._set("smoothed",
+                  "-" if result.smoothed_score is None else f"{result.smoothed_score:.3f}")
+        cls_display = ("STALE " if stale else "") + result.raw_class
+        self._set("raw_class", cls_display)
+        self.metrics["raw_class"].setStyleSheet(
+            f"color:{colour}; font-size:14px; font-weight:bold;")
+        self._set("smoothed_class", result.smoothed_class or ("n/a (stale)" if stale else "-"))
+        self._set("age", f"{age:.1f} s{'  [STALE]' if stale else ''}")
+        self._set("meta",
+                  f"job #{result.job_id} f{result.frame_idx} | {result.feature_mode} mode | "
+                  f"cellpose {(result.cellpose_ms or 0) / 1000:.1f}s | "
+                  f"features {(result.features_ms or 0) / 1000:.1f}s")
 
     BTN_STYLES = {
         "CAPTURE_READY": ("background:#2e7d32; color:white; font-size:14px; "

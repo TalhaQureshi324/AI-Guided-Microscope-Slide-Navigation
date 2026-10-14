@@ -105,18 +105,23 @@ class MosaicBuilder:
 
             px0 = int(math.floor(tx0 - self._origin[0]))
             py0 = int(math.floor(ty0 - self._origin[1]))
-            px1 = int(math.ceil(tx1 - self._origin[0]))
-            py1 = int(math.ceil(ty1 - self._origin[1]))
-            region = self._canvas[py0:py1, px0:px1]
-            rw = self._wsum[py0:py1, px0:px1]
+            # Destination slice derived from the SOURCE size - never from an
+            # independent ceil/floor of the span (a fractional pose made
+            # ceil(tx1)-floor(tx0) = w+1 and crashed the blend with a
+            # (448,801,3) vs (448,800,3) broadcast error). _expand guarantees
+            # the canvas covers [px0, px0+w] x [py0, py0+h].
+            region = self._canvas[py0:py0 + h, px0:px0 + w]
+            rw = self._wsum[py0:py0 + h, px0:px0 + w]
+            assert region.shape[:2] == (h, w) and rw.shape[:2] == (h, w), \
+                f"mosaic placement slice {region.shape} != frame {(h, w)}"
             tw = self._feather_weight(w, h, self._feather_fraction) * conf
 
             blended = (region.astype(np.float32) * rw[..., None]
                        + frame_bgr.astype(np.float32) * tw[..., None])
-            self._canvas[py0:py1, px0:px1] = np.clip(
+            self._canvas[py0:py0 + h, px0:px0 + w] = np.clip(
                 blended / (rw[..., None] + tw[..., None] + 1e-6), 0, 255
             ).astype(np.uint8)
-            self._wsum[py0:py1, px0:px1] = rw + tw
+            self._wsum[py0:py0 + h, px0:px0 + w] = rw + tw
 
             placement = {
                 "job_id": job_id,

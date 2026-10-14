@@ -241,7 +241,13 @@ class ScanMapPanel(QWidget):
             for pt in trail:
                 xs0.append(pt[0]); ys0.append(pt[1])
                 xs1.append(pt[0]); ys1.append(pt[1])
-        if self._current:
+        # The fit covers COMMITTED content only (fields, layers, boundary,
+        # trails, revisit points). The live crosshair deliberately does NOT
+        # participate: chasing it rescaled the whole map on every step, which
+        # read as "slight movement moves me drastically" (2026-10-14 repair).
+        # When the operator walks past the mapped territory the crosshair is
+        # drawn as a clamped edge indicator instead.
+        if not xs0 and self._current:
             xs0.append(self._current[0]); ys0.append(self._current[1])
             xs1.append(self._current[0]); ys1.append(self._current[1])
         for rp in self._revisit:
@@ -381,17 +387,33 @@ class ScanMapPanel(QWidget):
                 p.drawLine(int(rx) - 14, int(ry), int(rx) + 14, int(ry))
                 p.drawLine(int(rx), int(ry) - 14, int(rx), int(ry) + 14)
 
-        # ---- current live scan position (crosshair) ----
+        # ---- current live scan position (crosshair; edge-indicator when the
+        # stage has walked outside the mapped territory) ----
         if self._current:
             cx0, cy0 = to_px(self._current[0], self._current[1])
-            p.setPen(QPen(QColor(80, 200, 255), 2))
-            p.drawLine(int(cx0) - 6, int(cy0), int(cx0) + 6, int(cy0))
-            p.drawLine(int(cx0), int(cy0) - 6, int(cx0), int(cy0) + 6)
-        if self._fov_wh:
+            m = 12
+            off_view = (cx0 < m or cx0 > w - m or cy0 < m or cy0 > h - m)
+            ix, iy = int(min(max(cx0, m), w - m)), int(min(max(cy0, m), h - m))
+            if off_view:
+                # dimmed crosshair pinned to the edge + tick pointing at the
+                # true (off-screen) direction
+                p.setPen(QPen(QColor(80, 200, 255, 150), 2))
+                dx_real, dy_real = cx0 - ix, cy0 - iy
+                n = (dx_real ** 2 + dy_real ** 2) ** 0.5 or 1.0
+                p.drawLine(ix, iy, int(ix + dx_real / n * 11), int(iy + dy_real / n * 11))
+                p.setPen(QPen(QColor(80, 200, 255, 150), 1))
+                p.drawText(ix + 6, iy - 6, "LIVE")
+            else:
+                p.setPen(QPen(QColor(80, 200, 255), 2))
+                p.drawLine(ix - 6, iy, ix + 6, iy)
+                p.drawLine(ix, iy - 6, ix, iy + 6)
+        if self._fov_wh and self._current:
             fw, fh = self._fov_wh
-            fx0, fy0 = to_px(self._current[0] - fw / 2, self._current[1] - fh / 2) if self._current else (None, None)
-            if fx0 is not None:
-                fx1, fy1 = to_px(self._current[0] + fw / 2, self._current[1] + fh / 2)
+            fx0, fy0 = to_px(self._current[0] - fw / 2, self._current[1] - fh / 2)
+            fx1, fy1 = to_px(self._current[0] + fw / 2, self._current[1] + fh / 2)
+            if fx1 < 0 or fx0 > w or fy1 < 0 or fy0 > h:
+                pass    # FOV entirely off-view: skip (fit no longer follows it)
+            else:
                 p.setPen(QPen(QColor(80, 200, 255), 1, Qt.PenStyle.DashLine))
                 p.drawRect(int(fx0), int(fy0), int(fx1 - fx0), int(fy1 - fy0))
         p.end()

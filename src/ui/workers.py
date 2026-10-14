@@ -511,7 +511,7 @@ class FeatureWorker(threading.Thread):
                  jobmgr: JobManager, maskq: _MaskQueue, session=None,
                  smoother: Optional[TemporalSmoother] = None,
                  scan_map=None, nav_machine=None, tracker=None,
-                 mosaic=None, exploration=None) -> None:
+                 mosaic=None, exploration=None, order_gate=None) -> None:
         super().__init__(name=worker_id, daemon=True)
         self.worker_id = worker_id
         self.state = state
@@ -524,6 +524,7 @@ class FeatureWorker(threading.Thread):
         self.tracker = tracker          # shared Phase 7 global pose tracker
         self.mosaic = mosaic            # shared Phase 9 RGB mosaic builder
         self.exploration = exploration  # Phase 13 high-mag exploration
+        self.order_gate = order_gate    # capture-order spatial commit gate
         self.smoother = smoother or TemporalSmoother(
             alpha=cfg.get("temporal_alpha", 0.4),
             window=cfg.get("temporal_window", 5),
@@ -544,6 +545,8 @@ class FeatureWorker(threading.Thread):
                 job.error = f"feature error: {exc}"
                 job.t_end = time.perf_counter()
                 self.jobmgr.mark(job, FAILED, self.worker_id)
+                if self.order_gate is not None:
+                    self.order_gate.mark_never(job.job_id)
 
     def _run_features(self, job: AnalysisJob) -> None:
         st = self.state
@@ -629,6 +632,24 @@ class FeatureWorker(threading.Thread):
         job.t_end = time.perf_counter()
         self.jobmgr.mark(job, COMPLETE, self.worker_id)
 
+        # ---- capture-order spatial commit (2026-10-14 repair, R0/R18) -----
+        # analysis finished out of order? fine - but the trusted map is
+        # committed in CAPTURE order so the registration chain can never
+        # anchor against a later capture's state.
+        if self.order_gate is not None:
+            in_order = self.order_gate.wait_turn(job.job_id, self.jobmgr)
+            if not in_order:
+                logger_a.warning("spatial order TIMEOUT at job #%d - "
+                                 "committing out of capture order", job.job_id)
+        try:
+            self._commit_spatial(job, st)
+        finally:
+            if self.order_gate is not None:
+                self.order_gate.finish_turn(job.job_id)
+
+    def _commit_spatial(self, job: AnalysisJob, st: SharedState) -> None:
+        """Registration -> global pose -> coverage -> mosaic -> scan map,
+        serialized in capture order by the spatial order gate."""
         # ---- Phase 13: high-mag exploration path --------------------------
         # survey frozen + non-reference objective: pose = anchor + calibrated
         # chain delta (§4), containment vs the frozen monolayer mask (§5).
@@ -727,7 +748,7 @@ class FeatureWorker(threading.Thread):
             if self.nav_machine is not None:
                 transitions_before = len(self.nav_machine.transitions)
                 view = self.nav_machine.update(
-                    smoothed_score if smoothed_score is not None else score,
+                    job.smoothed_score if job.smoothed_score is not None else job.score,
                     t=job.t_capture, frame_idx=job.frame_idx,
                     x=job.cumulative_x, y=job.cumulative_y,
                 )
@@ -750,12 +771,13 @@ class FeatureWorker(threading.Thread):
         logger_a.info(
             "job #%d [%s] %s | %-9s score %.2f smooth %s | RBC %d cov %.2f "
             "merges %s | cellpose %.0fms feat %.0fms%s",
-            job.job_id, job.priority, ("STALE" if stale else "fresh"),
-            raw_class, score,
-            f"{smoothed_score:.2f}" if smoothed_score is not None else "n/a",
-            features["rbc_candidate_count"], features["coverage"],
-            (f"{features['merge_suspect_count']}" if merge_ran else "n/a"),
-            job.cellpose_ms or 0.0, features_ms,
+            job.job_id, job.priority, ("STALE" if job.stale else "fresh"),
+            job.raw_class, job.score,
+            f"{job.smoothed_score:.2f}" if job.smoothed_score is not None else "n/a",
+            job.features["rbc_candidate_count"], job.features["coverage"],
+            (f"{job.features['merge_suspect_count']}" if job.merge_analysis_ran
+             else "n/a"),
+            job.cellpose_ms or 0.0, job.features_ms or 0.0,
             job.error or "",
         )
         if self.session is not None:

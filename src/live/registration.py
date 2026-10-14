@@ -90,11 +90,38 @@ def prep_frame(frame_bgr: np.ndarray, work_width: int = WORK_WIDTH) -> np.ndarra
 
 def _phase_corr(ref: np.ndarray, cur: np.ndarray,
                 scale: float) -> Tuple[float, float, float]:
-    """Phase correlation translation ref->cur in FULL-RES px + response."""
-    window = cv2.createHanningWindow(ref.shape[::-1], cv2.CV_32F)
-    (sx, sy), response = cv2.phaseCorrelate(ref, cur, window)
+    """Phase correlation translation ref->cur in FULL-RES px + response.
+
+    ANTI-WRAP (2026-10-14 repair): raw circular phase correlation ALIASES
+    shifts beyond half the frame to the wrong opposite-direction offset
+    (measured on real keyframes: a true -260 prep-px shift returned +219 =
+    480-260 with low response -> every field FAILED). Both frames are
+    therefore Hanning-windowed and ZERO-PADDED to twice the frame, which
+    makes the circular correlation equal the linear one for any |shift| <
+    frame width - no aliasing for physically possible stage moves.
+    """
+    h, w = ref.shape[:2]
+    window = cv2.createHanningWindow((w, h), cv2.CV_32F)
+    pad_h, pad_w = h * 2, w * 2
+    r = np.zeros((pad_h, pad_w), dtype=np.float32)
+    c = np.zeros((pad_h, pad_w), dtype=np.float32)
+    r[:h, :w] = ref * window
+    c[:h, :w] = cur * window
+    (sx, sy), response = cv2.phaseCorrelate(r, c)
     inv = 1.0 / scale if scale > 0 else 1.0
     return float(sx) * inv, float(sy) * inv, float(response)
+
+
+def _to_u8(norm_img: np.ndarray) -> np.ndarray:
+    """Percentile-stretch a normalized (zero-mean/unit-std) prep image to u8.
+
+    The old np.clip(ref, 0, 255) destroyed normalized frames (values ~-3..3
+    -> near-black uint8) so ORB found ZERO keypoints on every real pair.
+    """
+    lo, hi = np.percentile(norm_img, 1.0), np.percentile(norm_img, 99.0)
+    if hi - lo < 1e-6:
+        return np.zeros_like(norm_img, dtype=np.uint8)
+    return (np.clip((norm_img - lo) / (hi - lo), 0.0, 1.0) * 255).astype(np.uint8)
 
 
 def _orb_translation(ref: np.ndarray, cur: np.ndarray, scale: float,
@@ -105,8 +132,8 @@ def _orb_translation(ref: np.ndarray, cur: np.ndarray, scale: float,
     Translation-only model: median of per-match offsets (RANSAC-like robust
     consensus for a 3-DOF model without fitting a full homography).
     """
-    r_u8 = np.clip(ref, 0, 255).astype(np.uint8)
-    c_u8 = np.clip(cur, 0, 255).astype(np.uint8)
+    r_u8 = _to_u8(ref)
+    c_u8 = _to_u8(cur)
     orb = cv2.ORB_create(nfeatures=2000, patchSize=31)
     kp_r, des_r = orb.detectAndCompute(r_u8, None)
     kp_c, des_c = orb.detectAndCompute(c_u8, None)
@@ -188,7 +215,11 @@ class GlobalPoseTracker:
     def register_field(self, job, frame_bgr: np.ndarray) -> RegistrationResult:
         """Compute the global pose for one analyzed job (spec §1-§7)."""
         prep, cur_raw_std = prep_frame(frame_bgr, self.work_width)
-        diag = math.hypot(prep.shape[1], prep.shape[0])
+        # frame_diag in FULL-RES px: the jump gate (full-res displacement) and
+        # the loop-closure search radius (full-res pose distance) must both
+        # scale with the actual camera resolution - a prep-scale diag broke
+        # that scaling (prep is always 480 wide regardless of camera).
+        diag = math.hypot(float(job.frame.shape[1]), float(job.frame.shape[0]))
 
         texture_min = float(self.cfg.get("texture_min_std", 3.0))
         ncc_min = float(self.cfg.get("overlap_ncc_min", 0.25))

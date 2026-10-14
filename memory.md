@@ -491,6 +491,56 @@ rejection, high-mag transform INSIDE/OUTSIDE + frozen-map invariance,
 worker wiring) + 45s video selftest regression + full GUI smoke
 (ticks -> finalize -> generate -> goto -> relocate).
 
+**Spatial-layer repair (2026-10-14, after the first real multi-capture
+session):** the user's careful live scan (7 manual captures, all MONOLAYER,
+counts 927-1088) produced ONE registered field and six REGISTRATION_FAILED
+conf 0.00, a one-tile mosaic, and two GUI crashes - the map/stitching layer,
+not the movement, was broken. ROOT CAUSES (proven offline on the saved
+keyframes with brute-force overlap-NCC ground truth, all six pairs had real
+25-55% overlap): (1) **ORB was fed destroyed images** - `_orb_translation`
+did `np.clip(ref,0,255)` on the NORMALIZED prep (values ~-3..+3 -> all-black
+uint8) so ORB found ZERO keypoints on every pair and the fallback never
+fired; fix = percentile-stretch `_to_u8()` before ORB -> 45-1264 matches,
+inliers 0.80-1.00, ORB translation EXACTLY equals brute-force truth on all
+6 real pairs. (2) **phase correlation wrapped circularly** - true -260
+prep-px shifts aliased to +220 (=480-260, opposite direction) with low
+response -> below the 0.12 floor -> conf 0.00 FAILED; fix = Hanning +
+ZERO-PAD to 2x frame in `_phase_corr` (linear == circular for any
+|shift| < frame) -> proposals now match truth. (3) mosaic broadcast crash
+(448,801,3) vs (448,800,3): fractional poses made ceil-floor spans w+1;
+fix = destination slice derived from SOURCE size + assert (R10). (4)
+`drift_warning` AttributeError killed the render tick (and the session via
+the excepthook): AnalysisJob is COMPLETE-marked BEFORE reg populates its
+fields and the job list is clickable in that window; fix = explicit
+dataclass defaults for ALL late fields (reg_*, drift_warning, coverage_*,
+capture_type...) + renderer guards for rows/features/score being None
+(R17) + offscreen smoke test that clicks a bare COMPLETE job. (5) capture
+ORDER: job #1 (captured first) reached features LAST and registered against
+job #2's state, stacking two fields at (0,0); fix = `src/live/
+spatial_order.py` SpatialOrderGate - spatial commits (reg -> map -> mosaic)
+wait for all lower job ids (terminal-failed ones skipped, 15 s timeout
+fallback logged) while feature extraction stays parallel (R0/R18). (6)
+jump gate compared full-res displacement vs PREP-scale frame_diag;
+frame_diag now stored in full-res px so max_jump_frac and the snap search
+radius scale with camera resolution. (7) map fit chased the live crosshair,
+rescaling the whole map while walking ("slight movement moves me
+drastically"); fit now anchors to COMMITTED content only, crosshair is a
+clamped edge indicator with a direction tick when outside (R5-lite).
+SIGN CONVENTION (R9, documented): registration reports CONTENT
+displacement - stage right = content left = negative dx; poses chain in
+content coordinates, which is exactly what makes mosaic tiles align; the
+map is therefore antiparallel to hand motion by design (image-only pose;
+encoders would fix this later). Evidence tooling: scripts/
+diagnose_registration.py (per-pair phase/ORB/brute-force-truth table);
+scripts/test_spatial_repair.py (R2 synthetic shift matrix incl. +-, y,
+diagonal up to 300 px on a wrap-free canvas - 0.0 px error; REAL 2026-10-14
+keyframes 7/7 GOOD x-spread 2503 px; mosaic fractional/negative/odd-size
+placement; schema defaults; gate reorder/terminal/timeout; offscreen fit
+stability). Video selftest + phase13 suite + GUI smoke all pass. NEXT
+physical test = the R12 two-field check: capture A, move ~half a frame,
+capture B -> expect GOOD + 50% overlap + both tiles in mosaic.png, THEN
+the A+B+C+D acceptance walk.
+
 ## 8. What's next (in order)
 
 1. **Collect human labels** with M/T/N/U during real sessions — the calibration
