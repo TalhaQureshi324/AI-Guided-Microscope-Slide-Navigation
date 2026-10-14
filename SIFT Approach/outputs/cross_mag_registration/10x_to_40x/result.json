@@ -1,0 +1,132 @@
+{
+  "experiment": "EXPERIMENT A: 40x FIELD LOCATED IN 10x REFERENCE",
+  "status": "GOOD",
+  "preprocessing_strategy": "gray",
+  "scale_assist": "native",
+  "keypoints": {
+    "parent": 8000,
+    "child": 2968
+  },
+  "raw_matches": 2968,
+  "good_matches": 660,
+  "inliers": 579,
+  "inlier_ratio": 0.8772727272727273,
+  "reprojection_error_px": {
+    "mean": 0.6612953887216039,
+    "rms": 0.7502197750562459
+  },
+  "best_scale": "native",
+  "effective_scale_measured": 0.2542321152462482,
+  "effective_scale_nominal": 4.0,
+  "transform_child_to_parent": [
+    [
+      0.2607364864924718,
+      -0.0013934253538367518,
+      764.3323146449322
+    ],
+    [
+      0.0027632630415620986,
+      0.25413864498579797,
+      408.20436188646096
+    ],
+    [
+      5.018431432206899e-06,
+      -1.3512502851768807e-06,
+      0.9999999999999999
+    ]
+  ],
+  "polygon_in_parent": [
+    [
+      764.3323146449324,
+      408.2043618864611
+    ],
+    [
+      1252.6224149994553,
+      409.5628221807917
+    ],
+    [
+      1252.9426145538873,
+      682.147896014816
+    ],
+    [
+      763.942636332056,
+      683.4163802645836
+    ]
+  ],
+  "footprint_area_px2": 133839.16200085822,
+  "percent_parent_area": 6.454434895874722,
+  "bbox_in_parent": [
+    763,
+    408,
+    1253,
+    684
+  ],
+  "inlier_spread": {
+    "child": 0.8676172725271758,
+    "parent": 0.8775951485831224
+  },
+  "confidence": "GOOD",
+  "fail_reason": null,
+  "sanity_reasons": [],
+  "weak_reasons": null,
+  "ransac_method": "USAC_MAGSAC",
+  "runtime_seconds": 2.49,
+  "cellpose_validation": {
+    "status": "ok",
+    "n_parent_rbc": 6552,
+    "n_child_rbc": 956,
+    "median_parent_rbc_radius_px": 3.949327084834294,
+    "match_threshold_px": 2.9619953136257204,
+    "n_matched": 915,
+    "match_pct": 95.7112970711297,
+    "median_centroid_error_px": 0.7493271600342074,
+    "median_child_rbc_radius_in_parent_px": 3.859444123149323
+  },
+  "attempts": [
+    {
+      "strategy": "gray",
+      "scale": "native",
+      "status": "GOOD",
+      "num_keypoints_parent": 8000,
+      "num_keypoints_child": 2968,
+      "raw_matches": 2968,
+      "good_matches": 660,
+      "inliers": 579,
+      "inlier_ratio": 0.8772727272727273,
+      "reproj_mean_px": 0.6612953887216039,
+      "reproj_rms_px": 0.7502197750562459,
+      "ransac_method": "USAC_MAGSAC",
+      "sanity_ok": true,
+      "sanity_reasons": [],
+      "inlier_spread_child": 0.8676172725271758,
+      "inlier_spread_parent": 0.8775951485831224,
+      "effective_scale": 0.2542321152462482,
+      "quad_in_parent": [
+        [
+          764.3323146449324,
+          408.2043618864611
+        ],
+        [
+          1252.6224149994553,
+          409.5628221807917
+        ],
+        [
+          1252.9426145538873,
+          682.147896014816
+        ],
+        [
+          763.942636332056,
+          683.4163802645836
+        ]
+      ],
+      "footprint_area_px2": 133839.16200085822,
+      "percent_parent_area": 6.454434895874722,
+      "bbox_in_parent": [
+        763,
+        408,
+        1253,
+        684
+      ]
+    }
+  ]
+}

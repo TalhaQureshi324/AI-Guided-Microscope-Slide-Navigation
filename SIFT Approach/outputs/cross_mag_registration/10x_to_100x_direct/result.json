@@ -1,0 +1,144 @@
+{
+  "experiment": "EXPERIMENT B: 100x FIELD DIRECTLY IN 10x REFERENCE",
+  "status": "GOOD",
+  "preprocessing_strategy": "clahe",
+  "scale_assist": "native",
+  "keypoints": {
+    "parent": 8002,
+    "child": 300
+  },
+  "raw_matches": 300,
+  "good_matches": 54,
+  "inliers": 52,
+  "inlier_ratio": 0.9629629629629629,
+  "reprojection_error_px": {
+    "mean": 0.24438630703211361,
+    "rms": 0.29447261324620566
+  },
+  "best_scale": "native",
+  "effective_scale_measured": 0.10252920818420763,
+  "effective_scale_nominal": 10.0,
+  "transform_child_to_parent": [
+    [
+      0.10191116733792326,
+      0.003747250634335913,
+      920.9779868128757
+    ],
+    [
+      -0.0003900596299772777,
+      0.10434483552413593,
+      491.43305921815124
+    ],
+    [
+      -9.74891388527977e-07,
+      3.623209770475217e-06,
+      1.0
+    ]
+  ],
+  "polygon_in_parent": [
+    [
+      920.9779868128757,
+      491.43305921815124
+    ],
+    [
+      1118.6382839769801,
+      491.60423614133435
+    ],
+    [
+      1118.3089857358536,
+      602.045266722625
+    ],
+    [
+      921.4190347364657,
+      601.6689460930959
+    ]
+  ],
+  "footprint_area_px2": 21767.02263320051,
+  "percent_parent_area": 1.0497213847029567,
+  "bbox_in_parent": [
+    920,
+    491,
+    1119,
+    603
+  ],
+  "inlier_spread": {
+    "child": 0.5568495146172746,
+    "parent": 0.5633389284420784
+  },
+  "confidence": "GOOD",
+  "fail_reason": null,
+  "sanity_reasons": [],
+  "weak_reasons": null,
+  "ransac_method": "USAC_MAGSAC",
+  "runtime_seconds": 2.78,
+  "cellpose_validation": {
+    "status": "ok",
+    "n_parent_rbc": 6552,
+    "n_child_rbc": 167,
+    "median_parent_rbc_radius_px": 3.949327084834294,
+    "match_threshold_px": 2.9619953136257204,
+    "n_matched": 163,
+    "match_pct": 97.60479041916167,
+    "median_centroid_error_px": 0.46226072617965186,
+    "median_child_rbc_radius_in_parent_px": 3.6967112891097083
+  },
+  "attempts": [
+    {
+      "strategy": "gray",
+      "scale": "native",
+      "status": "FAILED",
+      "num_keypoints_parent": 8000,
+      "num_keypoints_child": 1,
+      "raw_matches": 0,
+      "good_matches": 0,
+      "inliers": 0,
+      "inlier_ratio": 0.0,
+      "fail_reason": "too few good matches (0 < 8)"
+    },
+    {
+      "strategy": "clahe",
+      "scale": "native",
+      "status": "GOOD",
+      "num_keypoints_parent": 8002,
+      "num_keypoints_child": 300,
+      "raw_matches": 300,
+      "good_matches": 54,
+      "inliers": 52,
+      "inlier_ratio": 0.9629629629629629,
+      "reproj_mean_px": 0.24438630703211361,
+      "reproj_rms_px": 0.29447261324620566,
+      "ransac_method": "USAC_MAGSAC",
+      "sanity_ok": true,
+      "sanity_reasons": [],
+      "inlier_spread_child": 0.5568495146172746,
+      "inlier_spread_parent": 0.5633389284420784,
+      "effective_scale": 0.10252920818420763,
+      "quad_in_parent": [
+        [
+          920.9779868128757,
+          491.43305921815124
+        ],
+        [
+          1118.6382839769801,
+          491.60423614133435
+        ],
+        [
+          1118.3089857358536,
+          602.045266722625
+        ],
+        [
+          921.4190347364657,
+          601.6689460930959
+        ]
+      ],
+      "footprint_area_px2": 21767.02263320051,
+      "percent_parent_area": 1.0497213847029567,
+      "bbox_in_parent": [
+        920,
+        491,
+        1119,
+        603
+      ]
+    }
+  ]
+}

@@ -1,0 +1,630 @@
+{
+  "experiment_A_10_40": {
+    "experiment": "EXPERIMENT A: 40x FIELD LOCATED IN 10x REFERENCE",
+    "status": "GOOD",
+    "preprocessing_strategy": "gray",
+    "scale_assist": "native",
+    "keypoints": {
+      "parent": 8000,
+      "child": 2968
+    },
+    "raw_matches": 2968,
+    "good_matches": 660,
+    "inliers": 579,
+    "inlier_ratio": 0.8772727272727273,
+    "reprojection_error_px": {
+      "mean": 0.6612953887216039,
+      "rms": 0.7502197750562459
+    },
+    "best_scale": "native",
+    "effective_scale_measured": 0.2542321152462482,
+    "effective_scale_nominal": 4.0,
+    "transform_child_to_parent": [
+      [
+        0.2607364864924718,
+        -0.0013934253538367518,
+        764.3323146449322
+      ],
+      [
+        0.0027632630415620986,
+        0.25413864498579797,
+        408.20436188646096
+      ],
+      [
+        5.018431432206899e-06,
+        -1.3512502851768807e-06,
+        0.9999999999999999
+      ]
+    ],
+    "polygon_in_parent": [
+      [
+        764.3323146449324,
+        408.2043618864611
+      ],
+      [
+        1252.6224149994553,
+        409.5628221807917
+      ],
+      [
+        1252.9426145538873,
+        682.147896014816
+      ],
+      [
+        763.942636332056,
+        683.4163802645836
+      ]
+    ],
+    "footprint_area_px2": 133839.16200085822,
+    "percent_parent_area": 6.454434895874722,
+    "bbox_in_parent": [
+      763,
+      408,
+      1253,
+      684
+    ],
+    "inlier_spread": {
+      "child": 0.8676172725271758,
+      "parent": 0.8775951485831224
+    },
+    "confidence": "GOOD",
+    "fail_reason": null,
+    "sanity_reasons": [],
+    "weak_reasons": null,
+    "ransac_method": "USAC_MAGSAC",
+    "runtime_seconds": 2.49,
+    "cellpose_validation": {
+      "status": "ok",
+      "n_parent_rbc": 6552,
+      "n_child_rbc": 956,
+      "median_parent_rbc_radius_px": 3.949327084834294,
+      "match_threshold_px": 2.9619953136257204,
+      "n_matched": 915,
+      "match_pct": 95.7112970711297,
+      "median_centroid_error_px": 0.7493271600342074,
+      "median_child_rbc_radius_in_parent_px": 3.859444123149323
+    },
+    "attempts": [
+      {
+        "strategy": "gray",
+        "scale": "native",
+        "status": "GOOD",
+        "num_keypoints_parent": 8000,
+        "num_keypoints_child": 2968,
+        "raw_matches": 2968,
+        "good_matches": 660,
+        "inliers": 579,
+        "inlier_ratio": 0.8772727272727273,
+        "reproj_mean_px": 0.6612953887216039,
+        "reproj_rms_px": 0.7502197750562459,
+        "ransac_method": "USAC_MAGSAC",
+        "sanity_ok": true,
+        "sanity_reasons": [],
+        "inlier_spread_child": 0.8676172725271758,
+        "inlier_spread_parent": 0.8775951485831224,
+        "effective_scale": 0.2542321152462482,
+        "quad_in_parent": [
+          [
+            764.3323146449324,
+            408.2043618864611
+          ],
+          [
+            1252.6224149994553,
+            409.5628221807917
+          ],
+          [
+            1252.9426145538873,
+            682.147896014816
+          ],
+          [
+            763.942636332056,
+            683.4163802645836
+          ]
+        ],
+        "footprint_area_px2": 133839.16200085822,
+        "percent_parent_area": 6.454434895874722,
+        "bbox_in_parent": [
+          763,
+          408,
+          1253,
+          684
+        ]
+      }
+    ]
+  },
+  "experiment_B_10_100_direct": {
+    "experiment": "EXPERIMENT B: 100x FIELD DIRECTLY IN 10x REFERENCE",
+    "status": "GOOD",
+    "preprocessing_strategy": "clahe",
+    "scale_assist": "native",
+    "keypoints": {
+      "parent": 8002,
+      "child": 300
+    },
+    "raw_matches": 300,
+    "good_matches": 54,
+    "inliers": 52,
+    "inlier_ratio": 0.9629629629629629,
+    "reprojection_error_px": {
+      "mean": 0.24438630703211361,
+      "rms": 0.29447261324620566
+    },
+    "best_scale": "native",
+    "effective_scale_measured": 0.10252920818420763,
+    "effective_scale_nominal": 10.0,
+    "transform_child_to_parent": [
+      [
+        0.10191116733792326,
+        0.003747250634335913,
+        920.9779868128757
+      ],
+      [
+        -0.0003900596299772777,
+        0.10434483552413593,
+        491.43305921815124
+      ],
+      [
+        -9.74891388527977e-07,
+        3.623209770475217e-06,
+        1.0
+      ]
+    ],
+    "polygon_in_parent": [
+      [
+        920.9779868128757,
+        491.43305921815124
+      ],
+      [
+        1118.6382839769801,
+        491.60423614133435
+      ],
+      [
+        1118.3089857358536,
+        602.045266722625
+      ],
+      [
+        921.4190347364657,
+        601.6689460930959
+      ]
+    ],
+    "footprint_area_px2": 21767.02263320051,
+    "percent_parent_area": 1.0497213847029567,
+    "bbox_in_parent": [
+      920,
+      491,
+      1119,
+      603
+    ],
+    "inlier_spread": {
+      "child": 0.5568495146172746,
+      "parent": 0.5633389284420784
+    },
+    "confidence": "GOOD",
+    "fail_reason": null,
+    "sanity_reasons": [],
+    "weak_reasons": null,
+    "ransac_method": "USAC_MAGSAC",
+    "runtime_seconds": 2.78,
+    "cellpose_validation": {
+      "status": "ok",
+      "n_parent_rbc": 6552,
+      "n_child_rbc": 167,
+      "median_parent_rbc_radius_px": 3.949327084834294,
+      "match_threshold_px": 2.9619953136257204,
+      "n_matched": 163,
+      "match_pct": 97.60479041916167,
+      "median_centroid_error_px": 0.46226072617965186,
+      "median_child_rbc_radius_in_parent_px": 3.6967112891097083
+    },
+    "attempts": [
+      {
+        "strategy": "gray",
+        "scale": "native",
+        "status": "FAILED",
+        "num_keypoints_parent": 8000,
+        "num_keypoints_child": 1,
+        "raw_matches": 0,
+        "good_matches": 0,
+        "inliers": 0,
+        "inlier_ratio": 0.0,
+        "fail_reason": "too few good matches (0 < 8)"
+      },
+      {
+        "strategy": "clahe",
+        "scale": "native",
+        "status": "GOOD",
+        "num_keypoints_parent": 8002,
+        "num_keypoints_child": 300,
+        "raw_matches": 300,
+        "good_matches": 54,
+        "inliers": 52,
+        "inlier_ratio": 0.9629629629629629,
+        "reproj_mean_px": 0.24438630703211361,
+        "reproj_rms_px": 0.29447261324620566,
+        "ransac_method": "USAC_MAGSAC",
+        "sanity_ok": true,
+        "sanity_reasons": [],
+        "inlier_spread_child": 0.5568495146172746,
+        "inlier_spread_parent": 0.5633389284420784,
+        "effective_scale": 0.10252920818420763,
+        "quad_in_parent": [
+          [
+            920.9779868128757,
+            491.43305921815124
+          ],
+          [
+            1118.6382839769801,
+            491.60423614133435
+          ],
+          [
+            1118.3089857358536,
+            602.045266722625
+          ],
+          [
+            921.4190347364657,
+            601.6689460930959
+          ]
+        ],
+        "footprint_area_px2": 21767.02263320051,
+        "percent_parent_area": 1.0497213847029567,
+        "bbox_in_parent": [
+          920,
+          491,
+          1119,
+          603
+        ]
+      }
+    ]
+  },
+  "experiment_C_40_100": {
+    "experiment": "EXPERIMENT C: 100x FIELD LOCATED IN 40x IMAGE",
+    "status": "GOOD",
+    "preprocessing_strategy": "clahe",
+    "scale_assist": "native",
+    "keypoints": {
+      "parent": 7513,
+      "child": 300
+    },
+    "raw_matches": 300,
+    "good_matches": 129,
+    "inliers": 123,
+    "inlier_ratio": 0.9534883720930233,
+    "reprojection_error_px": {
+      "mean": 1.1608482711715207,
+      "rms": 1.379893799529773
+    },
+    "best_scale": "native",
+    "effective_scale_measured": 0.4082868216055521,
+    "effective_scale_nominal": 2.5,
+    "transform_child_to_parent": [
+      [
+        0.41174458390246027,
+        0.002984574568158191,
+        605.8081859444171
+      ],
+      [
+        0.0009813572229434694,
+        0.4109589151300822,
+        323.0591483533729
+      ],
+      [
+        1.5059004804942455e-06,
+        3.4920157543132137e-06,
+        1.0
+      ]
+    ],
+    "polygon_in_parent": [
+      [
+        605.8081859444171,
+        323.0591483533729
+      ],
+      [
+        1391.9236295037376,
+        324.00605271377964
+      ],
+      [
+        1389.9127650479693,
+        763.2853115485727
+      ],
+      [
+        606.742406292591,
+        763.6066357906724
+      ]
+    ],
+    "footprint_area_px2": 345175.06656354666,
+    "percent_parent_area": 16.64617412054141,
+    "bbox_in_parent": [
+      605,
+      323,
+      1392,
+      764
+    ],
+    "inlier_spread": {
+      "child": 0.6549037820491757,
+      "parent": 0.6589523361349252
+    },
+    "confidence": "GOOD",
+    "fail_reason": null,
+    "sanity_reasons": [],
+    "weak_reasons": null,
+    "ransac_method": "USAC_MAGSAC",
+    "runtime_seconds": 2.41,
+    "cellpose_validation": {
+      "status": "ok",
+      "n_parent_rbc": 956,
+      "n_child_rbc": 167,
+      "median_parent_rbc_radius_px": 15.180789096653193,
+      "match_threshold_px": 11.385591822489895,
+      "n_matched": 166,
+      "match_pct": 99.40119760479041,
+      "median_centroid_error_px": 0.9393775775071185,
+      "median_child_rbc_radius_in_parent_px": 14.720863735846574
+    },
+    "attempts": [
+      {
+        "strategy": "gray",
+        "scale": "native",
+        "status": "FAILED",
+        "num_keypoints_parent": 2968,
+        "num_keypoints_child": 1,
+        "raw_matches": 0,
+        "good_matches": 0,
+        "inliers": 0,
+        "inlier_ratio": 0.0,
+        "fail_reason": "too few good matches (0 < 8)"
+      },
+      {
+        "strategy": "clahe",
+        "scale": "native",
+        "status": "GOOD",
+        "num_keypoints_parent": 7513,
+        "num_keypoints_child": 300,
+        "raw_matches": 300,
+        "good_matches": 129,
+        "inliers": 123,
+        "inlier_ratio": 0.9534883720930233,
+        "reproj_mean_px": 1.1608482711715207,
+        "reproj_rms_px": 1.379893799529773,
+        "ransac_method": "USAC_MAGSAC",
+        "sanity_ok": true,
+        "sanity_reasons": [],
+        "inlier_spread_child": 0.6549037820491757,
+        "inlier_spread_parent": 0.6589523361349252,
+        "effective_scale": 0.4082868216055521,
+        "quad_in_parent": [
+          [
+            605.8081859444171,
+            323.0591483533729
+          ],
+          [
+            1391.9236295037376,
+            324.00605271377964
+          ],
+          [
+            1389.9127650479693,
+            763.2853115485727
+          ],
+          [
+            606.742406292591,
+            763.6066357906724
+          ]
+        ],
+        "footprint_area_px2": 345175.06656354666,
+        "percent_parent_area": 16.64617412054141,
+        "bbox_in_parent": [
+          605,
+          323,
+          1392,
+          764
+        ]
+      }
+    ]
+  },
+  "hierarchical_10_40_100": {
+    "experiment": "hierarchical 10x -> 40x -> 100x",
+    "status": "GOOD",
+    "built_on": {
+      "A_status": "GOOD",
+      "C_status": "GOOD"
+    },
+    "H_40_to_10": [
+      [
+        0.2607364864924718,
+        -0.0013934253538367518,
+        764.3323146449322
+      ],
+      [
+        0.0027632630415620986,
+        0.25413864498579797,
+        408.20436188646096
+      ],
+      [
+        5.018431432206899e-06,
+        -1.3512502851768807e-06,
+        0.9999999999999999
+      ]
+    ],
+    "H_100_to_40": [
+      [
+        0.41174458390246027,
+        0.002984574568158191,
+        605.8081859444171
+      ],
+      [
+        0.0009813572229434694,
+        0.4109589151300822,
+        323.0591483533729
+      ],
+      [
+        1.5059004804942455e-06,
+        3.4920157543132137e-06,
+        1.0
+      ]
+    ],
+    "H_100_to_10_composed": [
+      [
+        0.10822469536540838,
+        0.0028671422979138148,
+        919.4445207848111
+      ],
+      [
+        0.0019966758397264046,
+        0.10559929901160911,
+        490.7025544404819
+      ],
+      [
+        3.5616131070104796e-06,
+        2.9440200202108145e-06,
+        1.0
+      ]
+    ],
+    "composition_verification": {
+      "center_100x_in_40x": [
+        998.5967466971788,
+        543.4892871015994
+      ],
+      "center_in_40x_bounds": true,
+      "center_100x_in_10x_hierarchical": [
+        1019.3890780430145,
+        546.7634447220943
+      ],
+      "center_in_10x_bounds": true,
+      "sequential_vs_composed_max_corner_err_px": 2.5421149729252077e-13
+    },
+    "polygon_in_10x": [
+      [
+        919.4445207848111,
+        490.7025544404819
+      ],
+      [
+        1119.476386134695,
+        491.1771097225938
+      ],
+      [
+        1119.0184908132812,
+        602.4445459539908
+      ],
+      [
+        919.6169144392707,
+        602.7295687713108
+      ]
+    ],
+    "footprint_area_px2": 22297.824782345444,
+    "percent_parent_area": 1.075319482173295,
+    "bbox_in_parent": [
+      919,
+      490,
+      1120,
+      603
+    ],
+    "effective_scale_measured": 0.10377008006402555,
+    "confidence": "GOOD"
+  },
+  "direct_vs_hierarchical": {
+    "direct_status": "GOOD",
+    "hierarchical_status": "GOOD",
+    "centroid_direct_px": [
+      1019.8360728155437,
+      546.6878770438016
+    ],
+    "centroid_hierarchical_px": [
+      1019.3890780430145,
+      546.7634447220943
+    ],
+    "centroid_difference_px": 0.4533374026826248,
+    "corner_mean_difference_px": 1.3861112439659475,
+    "corner_max_difference_px": 2.091066242639457,
+    "iou": 0.9812031741809638,
+    "area_direct_px2": 21767.02263320051,
+    "area_hierarchical_px2": 22297.824782345444,
+    "effective_scale_direct": 0.10252920818420763,
+    "effective_scale_hierarchical": 0.10377008006402555,
+    "orientation_difference_deg": 0.08630912906391672
+  },
+  "image_metadata": [
+    {
+      "filename": "10x image.jpg",
+      "path": "C:\\AI-Guided Microscope Slide Navigation\\SIFT Approach\\10x image.jpg",
+      "magnification": "10x",
+      "width": 1920,
+      "height": 1080,
+      "channels": 3,
+      "pixel_count": 2073600
+    },
+    {
+      "filename": "40x image.jpg",
+      "path": "C:\\AI-Guided Microscope Slide Navigation\\SIFT Approach\\40x image.jpg",
+      "magnification": "40x",
+      "width": 1920,
+      "height": 1080,
+      "channels": 3,
+      "pixel_count": 2073600
+    },
+    {
+      "filename": "100x image.jpg",
+      "path": "C:\\AI-Guided Microscope Slide Navigation\\SIFT Approach\\100x image.jpg",
+      "magnification": "100x",
+      "width": 1920,
+      "height": 1080,
+      "channels": 3,
+      "pixel_count": 2073600
+    }
+  ],
+  "configuration": {
+    "preprocessing_strategies": [
+      "gray",
+      "clahe",
+      "illum_norm",
+      "gray_blur"
+    ],
+    "lowe_ratio": 0.75,
+    "ransac_px": 4.0,
+    "sift_nfeatures": 8000,
+    "scale_candidates": {
+      "A": [
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        6.0
+      ],
+      "B": [
+        4.0,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        10.0,
+        12.0,
+        14.0
+      ],
+      "C": [
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0
+      ]
+    },
+    "thresholds": {
+      "good_inliers": 20,
+      "good_inlier_ratio": 0.25,
+      "good_reproj_px": 4.0,
+      "good_spread_frac": 0.08,
+      "min_footprint_frac": 0.0005,
+      "max_footprint_frac": 0.85
+    },
+    "cellpose_used": true
+  },
+  "area_theory_check": {
+    "note": "sanity reference only, never used to accept/reject",
+    "nominal_area_fractions": {
+      "40x_in_10x": 0.0625,
+      "100x_in_10x": 0.01,
+      "100x_in_40x": 0.16
+    }
+  }
+}

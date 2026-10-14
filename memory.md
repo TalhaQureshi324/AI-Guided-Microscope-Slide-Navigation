@@ -505,3 +505,79 @@ worker wiring) + 45s video selftest regression + full GUI smoke
    high-mag labels before trusting exploration classes.
 6. Motorized stage (out of scope): replace image-registration poses with
    encoder coordinates behind the same map/classification system.
+
+## 9. Cross-magnification SIFT localization experiment (2026-10-14)
+
+**STANDALONE offline proof-of-concept — zero existing code touched.** New module
+lives entirely in `SIFT Approach/` (user instruction: never modify previous code;
+duplicate-and-change instead). Answers the FYP question: *can cross-magnification
+registration tell us where a higher-magnification view lies inside a lower-mag map?*
+This is the scientific basis for Phase 13's fixed-ratio objective transform: it
+measures the ratio from images instead of assuming the nominal objective ratio.
+
+**Files:** `SIFT Approach/cross_magnification_register.py` (experiment; cv2-only
+rendering — NO matplotlib on this machine), `test_composition.py` (15 unit tests,
+ALL PASSED), inputs `10x/40x/100x image.jpg` (all 1920x1080 — same camera, three
+objectives; equal pixels ≠ equal physical FOV), outputs
+`SIFT Approach/outputs/cross_mag_registration/{10x_to_40x, 10x_to_100x_direct,
+40x_to_100x, hierarchical_10x_to_100x, comparison}/` (keypoints/matches/inliers/
+reference_location/crop/warp/side_by_side/cell_validation PNGs + result.json per
+experiment; comparison/report.md + summary.json).
+
+**Method:** per pair — SIFT (FLANN knn, Lowe 0.75) -> USAC_MAGSAC homography ->
+geometric sanity (footprint area fraction vs parent, convexity, aspect, perspective
+variation, mirror determinant, centroid in bounds) -> inlier spatial spread ->
+GOOD/WEAK/FAILED. Controlled preprocessing ladder (gray, CLAHE, illumination-norm,
+mild blur) recorded per result. Native-scale SIFT first, then scale-assisted
+(child temporarily downscaled by candidate factors; H corrected back to original
+child px via `H_full = H_small @ diag(1/s)`). Hierarchical:
+`H_100_to_10 = H_40_to_10 @ H_100_to_40`, verified numerically (max corner error
+2.5e-13 px). Optional independent Cellpose (cpsam) RBC-centroid validation.
+
+**Measured results — every experiment GOOD (run took 98.6 s):**
+
+| Experiment | Status | Good | Inliers | Ratio | Reproj | Cellpose RBC check |
+|---|---|---:|---:|---:|---:|---|
+| 10x->40x | GOOD | 660 | 579 | 0.88 | 0.66px | 96% matched, 0.7px |
+| 10x->100x DIRECT | GOOD | 54 | 52 | 0.96 | 0.24px | 98% matched, 0.5px |
+| 40x->100x | GOOD | 129 | 123 | 0.95 | 1.16px | 99% matched, 0.9px |
+| 10x->40x->100x | GOOD | composed (2.5e-13px verify) | | | | n/a |
+
+Direct vs hierarchical 100x footprints: **IoU 0.981**, centroid diff **0.45 px**,
+orientation diff 0.09° — the two independent paths cross-validate almost exactly.
+Measured effective magnifications vs nominal: 3.93x/4, 9.75x/10, 2.45x/2.5, 9.64x/10
+(-1.7% to -3.6% — real camera/adapter optics, now MEASURED not assumed).
+Footprints vs theory (sanity only): 6.45%/6.25%, 1.05%/1%, 16.65%/16%.
+
+**Research conclusion (let the experiment decide — it did):** on THIS smear area
+SIFT localizes even the direct 10x->100x step reliably, and direct + hierarchical
+AGREE (IoU 0.98), so both architectures work here; the hierarchical chain is the
+stronger evidence unit (123 inliers at 2.45x gap vs 52 at 9.75x gap) and remains
+the recommended default for large gaps (direct failure was the expected outcome —
+here CLAHE contrast on the 100x image rescued it: plain gray gave 1 SIFT keypoint).
+Caveats for the write-up: one smear region, one slide, no slide removal between
+captures; direct 10x->100x success is NOT guaranteed on other fields.
+
+**Build lessons (bugs the tests caught):** (1) scale-assisted matches return H in
+DOWNSCALED-view coordinates — must compose back `H_full = H_small @ S` or every
+downstream footprint is silently wrong by exactly the resize factor (symptom:
+recovered scale 0.75 instead of 0.25 with 0.2px reprojection — perfectly consistent
+WRONG homography); (2) parent-side inlier spread must be measured against the
+projected FOOTPRINT area, not the parent image area — a high-mag footprint is
+legitimately ~1% of the parent, so the whole-parent denominator flags every
+correct high-mag registration as weak; (3) `cv2.drawMatches` indexes queryIdx into
+the FIRST image — child (query) must be passed left of parent (train);
+(4) `cv2.DRAW_RICH_KEYPOINTS` doesn't exist in OpenCV 4.11 Python — use
+`cv2.DrawMatchesFlags_DRAW_RICH_KEYPOINTS`; (5) `register_pair` initially returned
+a (strategy, scale) tuple in `summary["ctx"]` instead of the transform context —
+unit test caught it as a TypeError.
+
+**Not integrated anywhere** (per spec §35): live GUI, scan map, mosaic, Phase 13
+exploration all untouched. Next step if adopted: feed the measured per-objective
+scale into `survey.objectives` calibration instead of nominal ratios.
+
+## 10. Worklog conventions note
+
+Section 9 documents an experiment kept OUTSIDE the main pipeline by design
+(`SIFT Approach/` — the user's dedicated folder for the SIFT registration
+approach). Existing pipeline code was not modified.

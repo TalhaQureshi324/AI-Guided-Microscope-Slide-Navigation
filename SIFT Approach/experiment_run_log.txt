@@ -1,0 +1,37 @@
+=== CROSS-MAGNIFICATION LOCALIZATION EXPERIMENT (SIFT) ===
+reference 10x : 10x image.jpg  1920x1080
+view     40x : 40x image.jpg  1920x1080
+view    100x : 100x image.jpg  1920x1080
+NOTE: equal pixel dimensions do NOT mean equal physical field size.
+preprocessing strategies: ['gray', 'clahe', 'illum_norm', 'gray_blur']; Lowe ratio 0.75; RANSAC px 4.0
+
+EXPERIMENT A: 10x reference -> 40x field
+  [A]       gray scale= native kps=8000/2968 good= 660 -> GOOD (inliers=579, ratio=0.88, reproj=0.7px)
+  cellpose validation (10x <-> 40x)...
+C:\AI-Guided Microscope Slide Navigation\external\cellpose\cellpose\models.py:67: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  dict = torch.load(pretrained_model, map_location=torch.device("cpu"), mmap=True)
+  -> {'status': 'ok', 'n_parent_rbc': 6552, 'n_child_rbc': 956, 'median_parent_rbc_radius_px': 3.949327084834294, 'match_threshold_px': 2.9619953136257204, 'n_matched': 915, 'match_pct': 95.7112970711297, 'median_centroid_error_px': 0.7493271600342074, 'median_child_rbc_radius_in_parent_px': 3.859444123149323}
+  => A: GOOD  (2.49s)
+
+EXPERIMENT B: 10x reference -> 100x field (DIRECT — failure is a valid result)
+  [B]       gray scale= native kps=8000/1 good=   0 -> FAILED (too few good matches (0 < 8))
+  [B]      clahe scale= native kps=8002/300 good=  54 -> GOOD (inliers=52, ratio=0.96, reproj=0.2px)
+  cellpose validation (10x <-> 100x)...
+  -> {'status': 'ok', 'n_parent_rbc': 6552, 'n_child_rbc': 167, 'median_parent_rbc_radius_px': 3.949327084834294, 'match_threshold_px': 2.9619953136257204, 'n_matched': 163, 'match_pct': 97.60479041916167, 'median_centroid_error_px': 0.46226072617965186, 'median_child_rbc_radius_in_parent_px': 3.6967112891097083}
+  => B: GOOD  (2.78s)
+
+EXPERIMENT C: 40x image -> 100x field
+  [C]       gray scale= native kps=2968/1 good=   0 -> FAILED (too few good matches (0 < 8))
+  [C]      clahe scale= native kps=7513/300 good= 129 -> GOOD (inliers=123, ratio=0.95, reproj=1.2px)
+  cellpose validation (40x <-> 100x)...
+  -> {'status': 'ok', 'n_parent_rbc': 956, 'n_child_rbc': 167, 'median_parent_rbc_radius_px': 15.180789096653193, 'match_threshold_px': 11.385591822489895, 'n_matched': 166, 'match_pct': 99.40119760479041, 'median_centroid_error_px': 0.9393775775071185, 'median_child_rbc_radius_in_parent_px': 14.720863735846574}
+  => C: GOOD  (2.41s)
+
+HIERARCHICAL: 10x -> 40x -> 100x composition
+  composition verification: {'center_100x_in_40x': [998.5967466971788, 543.4892871015994], 'center_in_40x_bounds': True, 'center_100x_in_10x_hierarchical': [1019.3890780430145, 546.7634447220943], 'center_in_10x_bounds': True, 'sequential_vs_composed_max_corner_err_px': 2.5421149729252077e-13}
+
+COMPARISON: direct 10x->100x vs hierarchical 10x->40x->100x
+  => comparison: {"direct_status": "GOOD", "hierarchical_status": "GOOD", "centroid_direct_px": [1019.8360728155437, 546.6878770438016], "centroid_hierarchical_px": [1019.3890780430145, 546.7634447220943], "centroid_difference_px": 0.453
+
+TOTAL: 98.6s   outputs -> C:\AI-Guided Microscope Slide Navigation\SIFT Approach\outputs\cross_mag_registration
+EXIT CODE: 0
