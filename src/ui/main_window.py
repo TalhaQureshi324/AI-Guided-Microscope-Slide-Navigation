@@ -591,7 +591,12 @@ class MainWindow(QMainWindow):
                 self.cfg.get("result_stale_seconds", 25.0),
             )
             result_age = now - result.t_capture
-            if snap["outlines_on"] and result.overlay_layer is not None:
+            # The overlay (cell boundaries + centroid dots) describes the
+            # ANALYZED snapshot - once the result is STALE the microscope has
+            # moved, so the contours no longer match what the camera sees and
+            # must be cleared from the live view (watermark keeps the notice).
+            if ((not stale) and snap["outlines_on"]
+                    and result.overlay_layer is not None):
                 frame = cv2.bitwise_or(frame, result.overlay_layer)
                 if snap["debug_ids"] and result.id_layer is not None:
                     frame = cv2.bitwise_or(frame, result.id_layer)

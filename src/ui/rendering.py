@@ -103,6 +103,23 @@ def draw_class_border(frame_bgr: np.ndarray, colour: Tuple[int, int, int],
     return frame_bgr
 
 
+def _draw_text_shadow(img: np.ndarray, text: str, org: Tuple[int, int],
+                      scale: float, colour: Tuple[int, int, int],
+                      thickness: int = 1) -> None:
+    """Drop-shadow text where BOTH passes use the same thickness.
+
+    OpenCV Hershey stroke fonts advance WIDER at higher thickness (measured:
+    382 px at thickness 1 vs 408 px at thickness 3 for one HUD line), so the
+    old pattern (black shadow at thickness 3 + colour fill at thickness 1,
+    same origin) rendered every line double-struck with diverging offsets.
+    Same thickness + a 1 px shadow offset keeps the glyph advances identical.
+    """
+    ox, oy = org
+    cv2.putText(img, text, (ox + 1, oy + 1), _FONT, scale, (0, 0, 0),
+                thickness, cv2.LINE_AA)
+    cv2.putText(img, text, (ox, oy), _FONT, scale, colour, thickness, cv2.LINE_AA)
+
+
 def draw_live_hud(frame_bgr: np.ndarray, lines: List[Tuple[str, Tuple[int, int, int]]],
                   panel_width: int = 560) -> np.ndarray:
     """Compact top-left HUD lines over a translucent panel."""
@@ -113,8 +130,7 @@ def draw_live_hud(frame_bgr: np.ndarray, lines: List[Tuple[str, Tuple[int, int, 
     cv2.addWeighted(overlay_img, 0.5, frame_bgr, 0.5, 0, frame_bgr)
     y = 12 + line_h - 6
     for text, colour in lines:
-        cv2.putText(frame_bgr, text, (24, y), _FONT, 0.5, (0, 0, 0), 3, cv2.LINE_AA)
-        cv2.putText(frame_bgr, text, (24, y), _FONT, 0.5, colour, 1, cv2.LINE_AA)
+        _draw_text_shadow(frame_bgr, text, (24, y), 0.5, colour)
         y += line_h
     return frame_bgr
 
@@ -122,8 +138,6 @@ def draw_live_hud(frame_bgr: np.ndarray, lines: List[Tuple[str, Tuple[int, int, 
 def draw_stale_watermark(frame_bgr: np.ndarray) -> np.ndarray:
     """Corner tag marking the displayed detailed result as STALE (spec §16)."""
     h, w = frame_bgr.shape[:2]
-    cv2.putText(frame_bgr, "RESULT STALE - microscope moved", (w - 560, h - 24),
-                _FONT, 0.55, (0, 0, 0), 3, cv2.LINE_AA)
-    cv2.putText(frame_bgr, "RESULT STALE - microscope moved", (w - 560, h - 24),
-                _FONT, 0.55, (90, 90, 240), 1, cv2.LINE_AA)
+    _draw_text_shadow(frame_bgr, "RESULT STALE - microscope moved",
+                      (w - 560, h - 24), 0.55, (90, 90, 240))
     return frame_bgr

@@ -626,6 +626,32 @@ unit test caught it as a TypeError.
 exploration all untouched. Next step if adopted: feed the measured per-objective
 scale into `survey.objectives` calibration instead of nominal ratios.
 
+## 11. Live GUI fixes (2026-11-25)
+
+Three operator-reported fixes (same session as the SAC/camera resolution):
+
+1. **HUD text was double-struck/distorted** — root cause: OpenCV Hershey stroke
+   fonts advance WIDER at higher thickness (`getTextSize`: one HUD line = 382 px
+   at thickness 1 vs 408 px at thickness 3). `draw_live_hud`/`draw_stale_watermark`
+   drew a black shadow at thickness 3 + coloured fill at thickness 1 on the same
+   origin, so the two passes diverged into a ghosted second copy of every line.
+   Fix: `_draw_text_shadow()` helper in `src/ui/rendering.py` — both passes at
+   thickness 1 with a 1 px shadow offset (identical glyph advances). Reproduced
+   offscreen before/after to verify.
+2. **Cell-boundary overlay cleared when STALE** — the live viewport used to keep
+   compositing the last analysis's contours/centroid dots even after the
+   microscope moved (result stale). Now gated on `not stale` in
+   `_render_tick` (`src/ui/main_window.py`): contours show only while the result
+   corresponds to the current field; the "RESULT STALE" watermark remains. Job
+   viewer snapshots keep their overlays (they inspect their own snapshot).
+3. **Monolayer count gate moved to 850-1000** (operator decision 2026-11-25,
+   replaces 920-1025) in BOTH `configs/live.yaml` and `configs/video.yaml`.
+   Note: fields in-gate can still read TOO_THICK from the OTHER thick signals —
+   the rule stays "any 2 of {count, coverage>0.45, degree>1.8, cluster>0.75}".
+
+Camera note (same day): after the October Windows updates DSHOW cannot open by
+index — **MSMF is the working backend**; launch with `--backend msmf`.
+
 ## 10. Worklog conventions note
 
 Section 9 documents an experiment kept OUTSIDE the main pipeline by design

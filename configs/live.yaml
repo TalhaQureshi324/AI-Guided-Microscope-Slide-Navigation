@@ -97,8 +97,8 @@ monolayer_score_cfg:
     comp_uniformity: 0.10
 
 classification_cfg:
-  prototype_count_min: 920    # prototype_count_gate - NOT validated (spec §18)
-  prototype_count_max: 1025
+  prototype_count_min: 850    # operator gate 2026-11-25: monolayer = 850-1000 RBCs
+  prototype_count_max: 1000
   min_signals: 2
   thick_coverage_min: 0.45
   # gross-occupancy override: pre-Cellpose screen dark-foreground
